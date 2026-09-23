@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "advisories": [{
+    "id": "MOONVIGIL-2026-0001",
+    "package_name": "example/insecure-http",
+    "affected": ">=0.1.0 <0.2.0",
+    "severity": "high",
+    "summary": "Example advisory used to demonstrate offline dependency matching.",
+    "fixed_version": "0.2.0",
+    "references": ["https://example.invalid/advisories/MOONVIGIL-2026-0001"]
+  }]
+}

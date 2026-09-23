@@ -1,0 +1,7 @@
+{
+  "name": "fixture/affected",
+  "import": {
+    "example/insecure-http": "0.1.5",
+    "safe/package": "1.0.0"
+  }
+}

@@ -1,0 +1,69 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonvigil/moonvigil"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn parse_database(String) -> AdvisoryDatabase raise
+
+pub fn parse_manifest(String, source~ : String) -> Array[Dependency] raise
+
+pub fn report_json(ScanReport) -> String
+
+pub fn report_sarif(ScanReport) -> String
+
+pub fn report_terminal(ScanReport) -> String
+
+pub fn sbom_json(Array[Dependency]) -> String
+
+pub fn scan(Array[Dependency], AdvisoryDatabase) -> ScanReport
+
+// Errors
+
+// Types and methods
+pub struct Advisory {
+  id : String
+  package_name : String
+  affected : String
+  severity : String
+  summary : String
+  fixed_version : String
+  references : Array[String]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub struct AdvisoryDatabase {
+  schema_version : String
+  advisories : Array[Advisory]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub struct Dependency {
+  name : String
+  version : String
+  source : String
+} derive(Eq, ToJson, @debug.Debug)
+pub fn Dependency::Dependency(name~ : String, version~ : String, source~ : String) -> Self
+
+pub struct Finding {
+  dependency : Dependency
+  advisory : Advisory
+  status : FindingStatus
+} derive(Eq, ToJson, @debug.Debug)
+
+pub enum FindingStatus {
+  Affected
+  NotAffected
+  Uncomparable
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct ScanReport {
+  dependencies : Array[Dependency]
+  findings : Array[Finding]
+  uncomparable : Array[Finding]
+} derive(Eq, ToJson, @debug.Debug)
+
+// Type aliases
+
+// Traits

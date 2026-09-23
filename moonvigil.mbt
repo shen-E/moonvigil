@@ -1,0 +1,259 @@
+///|
+/// Offline dependency vulnerability matching for MoonBit projects.
+pub struct Dependency {
+  name : String
+  version : String
+  source : String
+} derive(Debug, Eq, ToJson)
+
+///|
+pub fn Dependency::Dependency(
+  name~ : String,
+  version~ : String,
+  source~ : String,
+) -> Dependency {
+  { name, version, source }
+}
+
+///|
+pub struct Advisory {
+  id : String
+  package_name : String
+  affected : String
+  severity : String
+  summary : String
+  fixed_version : String
+  references : Array[String]
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub struct AdvisoryDatabase {
+  schema_version : String
+  advisories : Array[Advisory]
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub enum FindingStatus {
+  Affected
+  NotAffected
+  Uncomparable
+} derive(Debug, Eq, ToJson)
+
+///|
+pub struct Finding {
+  dependency : Dependency
+  advisory : Advisory
+  status : FindingStatus
+} derive(Debug, Eq, ToJson)
+
+///|
+pub struct ScanReport {
+  dependencies : Array[Dependency]
+  findings : Array[Finding]
+  uncomparable : Array[Finding]
+} derive(Debug, Eq, ToJson)
+
+///|
+pub fn parse_database(text : String) -> AdvisoryDatabase raise {
+  @json.from_json(@json.parse(text))
+}
+
+///|
+pub fn parse_manifest(
+  text : String,
+  source~ : String,
+) -> Array[Dependency] raise {
+  let object : Map[String, Json] = @json.from_json(@json.parse(text))
+  let result : Array[Dependency] = []
+  match object.get("import") {
+    Some(Object(imports)) =>
+      for name, value in imports {
+        match value {
+          String(version) => result.push({ name, version, source })
+          _ => ()
+        }
+      }
+    _ => ()
+  }
+  result
+}
+
+///|
+pub fn scan(
+  dependencies : Array[Dependency],
+  database : AdvisoryDatabase,
+) -> ScanReport {
+  let findings : Array[Finding] = []
+  let uncomparable : Array[Finding] = []
+  for dependency in dependencies {
+    for advisory in database.advisories {
+      if dependency.name == advisory.package_name {
+        let status = match_range(dependency.version, advisory.affected)
+        let finding = { dependency, advisory, status }
+        match status {
+          Affected => findings.push(finding)
+          Uncomparable => uncomparable.push(finding)
+          NotAffected => ()
+        }
+      }
+    }
+  }
+  { dependencies, findings, uncomparable }
+}
+
+///|
+pub fn report_json(report : ScanReport) -> String {
+  @json.to_json(report).stringify(indent=2)
+}
+
+///|
+pub fn report_terminal(report : ScanReport) -> String {
+  let lines = [
+    "MoonVigil offline scan",
+    "Dependencies: \{report.dependencies.length()}",
+    "Affected: \{report.findings.length()}",
+    "Uncomparable: \{report.uncomparable.length()}",
+  ]
+  let details = report.findings.map(fn(finding) {
+    "[\{finding.advisory.severity}] \{finding.advisory.id} \{finding.dependency.name}@\{finding.dependency.version}: \{finding.advisory.summary}"
+  })
+  lines.append(details)
+  lines.join("\n")
+}
+
+///|
+pub fn report_sarif(report : ScanReport) -> String {
+  let results = report.findings.map(fn(finding) {
+    Json::object({
+      "ruleId": Json::string(finding.advisory.id),
+      "level": Json::string(sarif_level(finding.advisory.severity)),
+      "message": Json::object({ "text": Json::string(finding.advisory.summary) }),
+      "locations": Json::array([
+        Json::object({
+          "physicalLocation": Json::object({
+            "artifactLocation": Json::object({
+              "uri": Json::string(finding.dependency.source),
+            }),
+          }),
+        }),
+      ]),
+    })
+  })
+  Json::object({
+    "version": Json::string("2.1.0"),
+    "$schema": Json::string("https://json.schemastore.org/sarif-2.1.0.json"),
+    "runs": Json::array([
+      Json::object({
+        "tool": Json::object({
+          "driver": Json::object({ "name": Json::string("MoonVigil") }),
+        }),
+        "results": Json::array(results),
+      }),
+    ]),
+  }).stringify(indent=2)
+}
+
+///|
+pub fn sbom_json(dependencies : Array[Dependency]) -> String {
+  let components = dependencies.map(fn(dependency) {
+    Json::object({
+      "type": Json::string("library"),
+      "name": Json::string(dependency.name),
+      "version": Json::string(dependency.version),
+      "purl": Json::string(
+        "pkg:moonbit/\{dependency.name}@\{dependency.version}",
+      ),
+    })
+  })
+  Json::object({
+    "bomFormat": Json::string("CycloneDX"),
+    "specVersion": Json::string("1.5"),
+    "components": Json::array(components),
+  }).stringify(indent=2)
+}
+
+///|
+fn sarif_level(severity : String) -> String {
+  match severity.to_lower() {
+    "critical" | "high" => "error"
+    "medium" => "warning"
+    _ => "note"
+  }
+}
+
+///|
+fn match_range(version : String, affected : String) -> FindingStatus {
+  match (parse_version(version), parse_range(affected)) {
+    (Some(current), Some((lower, upper))) => {
+      let lower_ok = match lower {
+        Some(value) => compare_versions(current, value) >= 0
+        None => true
+      }
+      let upper_ok = match upper {
+        Some(value) => compare_versions(current, value) < 0
+        None => true
+      }
+      if lower_ok && upper_ok {
+        Affected
+      } else {
+        NotAffected
+      }
+    }
+    _ => Uncomparable
+  }
+}
+
+///|
+fn parse_range(text : String) -> (Array[Int]?, Array[Int]?)? {
+  let trimmed = text.trim().to_owned()
+  if trimmed == "*" {
+    Some((None, None))
+  } else {
+    let parts = trimmed.split(" ").to_array()
+    let mut lower : Array[Int]? = None
+    let mut upper : Array[Int]? = None
+    for part in parts {
+      let value = part.to_owned()
+      if value.has_prefix(">=") {
+        lower = parse_version(value[2:].to_owned())
+      } else if value.has_prefix("<") {
+        upper = parse_version(value[1:].to_owned())
+      } else {
+        return None
+      }
+    }
+    Some((lower, upper))
+  }
+}
+
+///|
+fn parse_version(version : String) -> Array[Int]? {
+  let raw = version.trim().to_owned()
+  let core = match raw.split_once("-") {
+    Some(pair) => pair.0.to_owned()
+    None => raw
+  }
+  let pieces = core.split(".").to_array()
+  if pieces.length() != 3 {
+    return None
+  }
+  let values : Array[Int] = []
+  for piece in pieces {
+    let parsed : Int = @strconv.from_str(piece) catch { _ => return None }
+    values.push(parsed)
+  }
+  Some(values)
+}
+
+///|
+fn compare_versions(left : Array[Int], right : Array[Int]) -> Int {
+  for index in 0..<3 {
+    if left[index] < right[index] {
+      return -1
+    }
+    if left[index] > right[index] {
+      return 1
+    }
+  }
+  0
+}

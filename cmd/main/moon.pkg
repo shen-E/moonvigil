@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "moonvigil/moonvigil" @vigil,
+}
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "native_exit.c" ],
+)
