@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "DEMO-2026-0001",
+      "package_name": "demo/legacy-http",
+      "affected": ">=1.0.0 <2.0.0",
+      "severity": "high",
+      "summary": "Demonstration advisory for a legacy HTTP dependency.",
+      "fixed_version": "2.0.0",
+      "references": ["https://example.invalid/demo/DEMO-2026-0001"]
+    },
+    {
+      "id": "DEMO-2026-0002",
+      "package_name": "demo/old-parser",
+      "affected": "=0.9.0",
+      "severity": "medium",
+      "summary": "Demonstration advisory for an outdated parser dependency.",
+      "fixed_version": "0.10.0",
+      "references": ["https://example.invalid/demo/DEMO-2026-0002"]
+    },
+    {
+      "id": "DEMO-2026-0003",
+      "package_name": "demo/unpinned-plugin",
+      "affected": "*",
+      "severity": "low",
+      "summary": "Demonstration advisory that exposes an uncomparable branch version.",
+      "fixed_version": "1.0.0",
+      "references": ["https://example.invalid/demo/DEMO-2026-0003"]
+    }
+  ]
+}

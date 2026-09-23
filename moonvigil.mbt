@@ -109,6 +109,7 @@ pub struct Finding {
 
 ///|
 pub struct ScanReport {
+  schema_version : String
   dependencies : Array[Dependency]
   findings : Array[Finding]
   uncomparable : Array[Finding]
@@ -159,7 +160,7 @@ pub fn scan(
       }
     }
   }
-  { dependencies, findings, uncomparable }
+  { schema_version: "1", dependencies, findings, uncomparable }
 }
 
 ///|
@@ -171,47 +172,140 @@ pub fn report_json(report : ScanReport) -> String {
 pub fn report_terminal(report : ScanReport) -> String {
   let lines = [
     "MoonVigil offline scan",
+    "Report schema: v\{report.schema_version}",
     "Dependencies: \{report.dependencies.length()}",
     "Affected: \{report.findings.length()}",
     "Uncomparable: \{report.uncomparable.length()}",
   ]
-  let details = report.findings.map(fn(finding) {
-    "[\{finding.advisory.severity}] \{finding.advisory.id} \{finding.dependency.name}@\{finding.dependency.version}: \{finding.advisory.summary}"
-  })
-  lines.append(details)
+  for finding in report.findings {
+    lines.push(terminal_finding(finding, "affected"))
+  }
+  for finding in report.uncomparable {
+    lines.push(terminal_finding(finding, "uncomparable"))
+  }
   lines.join("\n")
 }
 
 ///|
 pub fn report_sarif(report : ScanReport) -> String {
-  let results = report.findings.map(fn(finding) {
-    Json::object({
-      "ruleId": Json::string(finding.advisory.id),
-      "level": Json::string(sarif_level(finding.advisory.severity)),
-      "message": Json::object({ "text": Json::string(finding.advisory.summary) }),
-      "locations": Json::array([
-        Json::object({
-          "physicalLocation": Json::object({
-            "artifactLocation": Json::object({
-              "uri": Json::string(finding.dependency.source),
-            }),
-          }),
-        }),
-      ]),
-    })
-  })
+  let results : Array[Json] = []
+  let rules : Array[Json] = []
+  let seen_rules : Map[String, Bool] = Map([])
+  for finding in report.findings {
+    results.push(sarif_result(finding))
+    add_sarif_rule(rules, seen_rules, finding.advisory)
+  }
+  for finding in report.uncomparable {
+    results.push(sarif_result(finding))
+    add_sarif_rule(rules, seen_rules, finding.advisory)
+  }
   Json::object({
     "version": Json::string("2.1.0"),
     "$schema": Json::string("https://json.schemastore.org/sarif-2.1.0.json"),
     "runs": Json::array([
       Json::object({
         "tool": Json::object({
-          "driver": Json::object({ "name": Json::string("MoonVigil") }),
+          "driver": Json::object({
+            "name": Json::string("MoonVigil"),
+            "rules": Json::array(rules),
+          }),
         }),
         "results": Json::array(results),
       }),
     ]),
   }).stringify(indent=2)
+}
+
+///|
+fn terminal_finding(finding : Finding, status : String) -> String {
+  let fixed_version = if finding.advisory.fixed_version == "" {
+    "not available"
+  } else {
+    finding.advisory.fixed_version
+  }
+  let references = if finding.advisory.references.length() == 0 {
+    "none"
+  } else {
+    finding.advisory.references.join(", ")
+  }
+  (
+    $|[\{status}] [\{finding.advisory.severity}] \{finding.advisory.id}
+    $|  package: \{finding.dependency.name}
+    $|  installed: \{finding.dependency.version}
+    $|  affected: \{finding.advisory.affected}
+    $|  fixed: \{fixed_version}
+    $|  source: \{finding.dependency.source}
+    $|  summary: \{finding.advisory.summary}
+    $|  references: \{references}
+  )
+}
+
+///|
+fn sarif_result(finding : Finding) -> Json {
+  let level = match finding.status {
+    Affected => sarif_level(finding.advisory.severity)
+    Uncomparable => "note"
+    NotAffected => "none"
+  }
+  let message = match finding.status {
+    Affected => finding.advisory.summary
+    Uncomparable =>
+      "MoonVigil could not compare the installed version against this advisory range."
+    NotAffected => finding.advisory.summary
+  }
+  Json::object({
+    "ruleId": Json::string(finding.advisory.id),
+    "level": Json::string(level),
+    "message": Json::object({ "text": Json::string(message) }),
+    "locations": Json::array([
+      Json::object({
+        "physicalLocation": Json::object({
+          "artifactLocation": Json::object({
+            "uri": Json::string(finding.dependency.source),
+          }),
+        }),
+      }),
+    ]),
+    "properties": Json::object({
+      "package": Json::string(finding.dependency.name),
+      "installedVersion": Json::string(finding.dependency.version),
+      "affectedRange": Json::string(finding.advisory.affected),
+      "fixedVersion": Json::string(finding.advisory.fixed_version),
+      "references": Json::array(finding.advisory.references.map(Json::string)),
+      "matchStatus": Json::string(match_status_name(finding.status)),
+    }),
+  })
+}
+
+///|
+fn add_sarif_rule(
+  rules : Array[Json],
+  seen_rules : Map[String, Bool],
+  advisory : Advisory,
+) -> Unit {
+  if !seen_rules.contains(advisory.id) {
+    seen_rules[advisory.id] = true
+    let rule : Map[String, Json] = {
+      "id": Json::string(advisory.id),
+      "shortDescription": Json::object({
+        "text": Json::string(advisory.summary),
+      }),
+      "fullDescription": Json::object({ "text": Json::string(advisory.summary) }),
+    }
+    if advisory.references.length() > 0 {
+      rule["helpUri"] = Json::string(advisory.references[0])
+    }
+    rules.push(Json::object(rule))
+  }
+}
+
+///|
+fn match_status_name(status : FindingStatus) -> String {
+  match status {
+    Affected => "affected"
+    NotAffected => "not_affected"
+    Uncomparable => "uncomparable"
+  }
 }
 
 ///|

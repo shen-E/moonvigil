@@ -1,0 +1,7 @@
+{
+  "name": "demo/production-service",
+  "import": {
+    "demo/legacy-http": "1.4.2",
+    "demo/safe-core": "3.0.0"
+  }
+}

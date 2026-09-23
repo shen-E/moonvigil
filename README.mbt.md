@@ -17,8 +17,15 @@ moon test --target native
 moon run cmd/main --target native -- db validate advisories.json
 moon run cmd/main --target native -- scan fixtures/affected --db advisories.json
 moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format sarif --output report.sarif
-moon run cmd/main --target native -- sbom fixtures/affected
+moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
 ```
+
+## Linux demonstration
+
+The reproducible WSL2 Ubuntu demonstration is in [`demo/`](demo/README.md).
+It builds and tests MoonVigil, scans a representative multi-manifest project,
+and writes terminal, JSON, SARIF, and SBOM evidence without executing the
+scanned project.
 
 ## Advisory database
 
@@ -45,4 +52,4 @@ just build
 
 The native CLI uses a tiny C bridge solely to return standard process exit
 codes: `0` when no affected dependency is found, `1` when findings exist, and
-`2` for invalid command usage.
+`2` for invalid command arguments, paths, databases, or output files.

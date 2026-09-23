@@ -122,3 +122,35 @@ test "reports an uncomparable version without an affected finding" {
   assert_eq(report.findings.length(), 0)
   assert_eq(report.uncomparable.length(), 1)
 }
+
+///|
+test "serializes complete affected and uncomparable evidence" {
+  let database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-3\",\"package_name\":\"example/insecure-http\",\"affected\":\">=1.0.0 <2.0.0\",\"severity\":\"high\",\"summary\":\"fixture summary\",\"fixed_version\":\"2.0.0\",\"references\":[\"https://example.invalid/MV-3\"]}]}",
+  )
+  let report = scan(
+    [
+      Dependency(
+        name="example/insecure-http",
+        version="1.2.3",
+        source="fixture/moon.mod.json",
+      ),
+      Dependency(
+        name="example/insecure-http",
+        version="main",
+        source="fixture/moon.pkg.json",
+      ),
+    ],
+    database,
+  )
+  let terminal = report_terminal(report)
+  let json = report_json(report)
+  let sarif = report_sarif(report)
+  assert_true(terminal.contains("affected: >=1.0.0 <2.0.0"))
+  assert_true(terminal.contains("fixed: 2.0.0"))
+  assert_true(terminal.contains("[uncomparable]"))
+  assert_true(json.contains("schema_version"))
+  assert_true(sarif.contains("installedVersion"))
+  assert_true(sarif.contains("matchStatus"))
+  assert_true(sarif.contains("uncomparable"))
+}

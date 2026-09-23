@@ -34,3 +34,38 @@ jobs:
         run: moon test --target native
       - name: Build
         run: moon build --target native
+      - name: CLI end-to-end checks
+        shell: bash
+        run: |
+          output_dir="$(mktemp -d)"
+          set +e
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format json --output "$output_dir/affected.json"
+          affected_exit=$?
+          moon run cmd/main --target native -- scan fixtures/unknown-version --db advisories.json --format sarif --output "$output_dir/unknown.sarif"
+          unknown_exit=$?
+          moon run cmd/main --target native -- scan fixtures/missing-import --db advisories.json
+          clean_exit=$?
+          moon run cmd/main --target native -- scan fixtures/not-found --db advisories.json
+          missing_path_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --format unsupported
+          invalid_format_exit=$?
+          moon run cmd/main --target native -- db validate fixtures/invalid-database.json
+          invalid_database_exit=$?
+          moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/demo.json"
+          demo_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --output "$output_dir"
+          output_error_exit=$?
+          set -e
+          test "$affected_exit" -eq 1
+          test "$unknown_exit" -eq 0
+          test "$clean_exit" -eq 0
+          test "$missing_path_exit" -eq 2
+          test "$invalid_format_exit" -eq 2
+          test "$invalid_database_exit" -eq 2
+          test "$demo_exit" -eq 1
+          test "$output_error_exit" -eq 2
+          test -s "$output_dir/affected.json"
+          test -s "$output_dir/unknown.sarif"
+          test -s "$output_dir/demo.json"
+          moon run cmd/main --target native -- sbom fixtures/affected --output "$output_dir/components.json"
+          test -s "$output_dir/components.json"

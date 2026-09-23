@@ -10,3 +10,8 @@ The scanner deliberately reports unparsable versions separately. This prevents
 branches, tags, malformed strings, and non-SemVer schemes from being silently
 classified as either safe or vulnerable. Operators are responsible for the
 authenticity and freshness of `advisories.json`.
+
+The WSL demonstration may download MoonBit only when the build toolchain is
+absent. That bootstrap step is separate from scanning: the scanner itself reads
+only local manifests and a local advisory database, and never executes code in
+the scanned project.

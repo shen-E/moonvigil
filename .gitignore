@@ -1,5 +1,6 @@
 _build/
 .mooncakes/
 .githooks/
+.demo-output/
 *.sarif
 *.jsonl

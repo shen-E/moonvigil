@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added deterministic stable-SemVer range matching and conservative
+  `Uncomparable` handling.
+- Added detailed terminal, JSON, and SARIF evidence with a report schema
+  version, plus CLI artifact output validation.
+- Added a reproducible WSL2 Ubuntu demonstration project and narration script.
+
 ## 0.1.0
 
 - Added offline parsing for `moon.mod.json` and `moon.pkg.json` manifests.

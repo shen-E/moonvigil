@@ -1,0 +1,6 @@
+{
+  "import": {
+    "demo/old-parser": "0.9.0",
+    "demo/unpinned-plugin": "main"
+  }
+}

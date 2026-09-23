@@ -67,6 +67,7 @@ pub struct Inventory {
 } derive(Eq, ToJson, @debug.Debug)
 
 pub struct ScanReport {
+  schema_version : String
   dependencies : Array[Dependency]
   findings : Array[Finding]
   uncomparable : Array[Finding]
