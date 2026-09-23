@@ -1,0 +1,6 @@
+{
+  "name": "fixture/unknown-version",
+  "import": {
+    "example/insecure-http": "main"
+  }
+}

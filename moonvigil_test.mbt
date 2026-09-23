@@ -9,6 +9,53 @@ test "parses a MoonBit JSON manifest" {
 }
 
 ///|
+test "normalizes duplicate declarations with a stable evidence location" {
+  let declarations : Array[Dependency] = [
+    Dependency(name="safe/package", version="1.0.0", source="z/moon.pkg.json"),
+    Dependency(
+      name="example/insecure-http",
+      version="0.1.5",
+      source="b/moon.pkg.json",
+    ),
+    Dependency(
+      name="example/insecure-http",
+      version="0.1.5",
+      source="a/moon.mod.json",
+    ),
+    Dependency(
+      name="example/insecure-http",
+      version="0.2.0",
+      source="a/moon.mod.json",
+    ),
+  ]
+  let inventory = inventory_from_dependencies(declarations)
+  let reversed = inventory_from_dependencies([
+    declarations[3],
+    declarations[2],
+    declarations[1],
+    declarations[0],
+  ])
+  assert_eq(inventory.dependencies.length(), 3)
+  assert_true(
+    inventory.dependencies.any(fn(dependency) {
+      dependency.name == "example/insecure-http" &&
+      dependency.version == "0.1.5" &&
+      dependency.source == "a/moon.mod.json"
+    }),
+  )
+  assert_eq(inventory, reversed)
+}
+
+///|
+test "accepts a manifest without an import field" {
+  let dependencies = parse_manifest(
+    "{\"name\":\"fixture/no-import\"}",
+    source="fixture/moon.mod.json",
+  )
+  assert_eq(dependencies.length(), 0)
+}
+
+///|
 test "matches an affected dependency and leaves a fixed version clean" {
   let database = parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-1\",\"package_name\":\"example/insecure-http\",\"affected\":\">=0.1.0 <0.2.0\",\"severity\":\"high\",\"summary\":\"fixture\",\"fixed_version\":\"0.2.0\",\"references\":[]}]}",

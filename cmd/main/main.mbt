@@ -62,15 +62,10 @@ fn discover_dependencies(path : String) -> Array[@vigil.Dependency] raise {
       source=manifest,
     )
     for dependency in parsed {
-      if !dependencies.any(fn(existing) {
-          existing.name == dependency.name &&
-          existing.version == dependency.version
-        }) {
-        dependencies.push(dependency)
-      }
+      dependencies.push(dependency)
     }
   }
-  dependencies
+  @vigil.inventory_from_dependencies(dependencies).dependencies
 }
 
 ///|
@@ -80,12 +75,22 @@ fn collect_manifests(path : String, manifests : Array[String]) -> Unit raise {
       manifests.push(path)
     }
   } else if @fs.is_dir(path) {
-    for entry in @fs.read_dir(path) {
-      if entry != ".git" && entry != "_build" {
+    let entries = @fs.read_dir(path).to_owned()
+    entries.sort()
+    for entry in entries {
+      if !is_ignored_directory(entry) {
         collect_manifests("\{path}/\{entry}", manifests)
       }
     }
   }
+}
+
+///|
+fn is_ignored_directory(entry : String) -> Bool {
+  entry == ".git" ||
+  entry == ".mooncakes" ||
+  entry == ".repos" ||
+  entry == "_build"
 }
 
 ///|

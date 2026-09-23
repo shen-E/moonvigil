@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn inventory_from_dependencies(Array[Dependency]) -> Inventory
+
 pub fn parse_database(String) -> AdvisoryDatabase raise
 
 pub fn parse_manifest(String, source~ : String) -> Array[Dependency] raise
@@ -56,6 +58,10 @@ pub enum FindingStatus {
   Affected
   NotAffected
   Uncomparable
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct Inventory {
+  dependencies : Array[Dependency]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub struct ScanReport {

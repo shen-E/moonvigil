@@ -1,0 +1,6 @@
+{
+  "import": {
+    "example/insecure-http": "0.1.5",
+    "example/unknown-version": "main"
+  }
+}

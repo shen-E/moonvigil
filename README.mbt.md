@@ -5,6 +5,10 @@ manifests. It scans `moon.mod.json` and `moon.pkg.json`, matches dependencies
 against a local versioned advisory database, and emits terminal, JSON, SARIF,
 or CycloneDX-style SBOM output. No project metadata is sent over the network.
 
+Recursive scans normalise declarations by package name and version. Duplicate
+declarations are reported once with a deterministic manifest location as their
+evidence source.
+
 ## Run
 
 ```sh

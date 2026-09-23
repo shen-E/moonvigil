@@ -16,6 +16,67 @@ pub fn Dependency::Dependency(
 }
 
 ///|
+/// A deterministic, de-duplicated dependency inventory.
+pub struct Inventory {
+  dependencies : Array[Dependency]
+} derive(Debug, Eq, ToJson)
+
+///|
+/// Normalise declarations into a deterministic inventory.
+///
+/// Declarations with the same package name and version are represented once.
+/// A canonical manifest path becomes the evidence location.
+pub fn inventory_from_dependencies(
+  dependencies : Array[Dependency],
+) -> Inventory {
+  let normalized : Array[Dependency] = []
+  for dependency in dependencies {
+    let mut duplicate : Int? = None
+    for index in 0..<normalized.length() {
+      let existing = normalized[index]
+      if existing.name == dependency.name &&
+        existing.version == dependency.version {
+        duplicate = Some(index)
+      }
+    }
+    match duplicate {
+      Some(index) =>
+        if dependency.source.compare(normalized[index].source) < 0 {
+          normalized[index] = dependency
+        }
+      None => normalized.push(dependency)
+    }
+  }
+  let ordered : Array[Dependency] = []
+  for dependency in normalized {
+    let mut insert_at = ordered.length()
+    for index in 0..<ordered.length() {
+      if insert_at == ordered.length() &&
+        dependency_compare(dependency, ordered[index]) < 0 {
+        insert_at = index
+      }
+    }
+    ordered.insert(insert_at, dependency)
+  }
+  { dependencies: ordered }
+}
+
+///|
+fn dependency_compare(left : Dependency, right : Dependency) -> Int {
+  let by_name = left.name.compare(right.name)
+  if by_name != 0 {
+    by_name
+  } else {
+    let by_version = left.version.compare(right.version)
+    if by_version != 0 {
+      by_version
+    } else {
+      left.source.compare(right.source)
+    }
+  }
+}
+
+///|
 pub struct Advisory {
   id : String
   package_name : String
