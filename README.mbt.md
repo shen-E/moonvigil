@@ -23,9 +23,11 @@ moon run cmd/main --target native -- sbom fixtures/affected
 ## Advisory database
 
 `advisories.json` uses a compact OSV-inspired schema. Use an empty
-`fixed_version` string when no fixed release is known. `affected` accepts a
-three-part numeric SemVer range such as `>=0.1.0 <0.2.0`, or `*`. Versions that
-cannot be compared are reported separately rather than treated as vulnerable.
+`fixed_version` string when no fixed release is known. `affected` accepts
+three-part numeric stable SemVer expressions using `<`, `<=`, `>`, `>=`, `=`,
+or a bare exact version; spaces form an intersection and `||` forms a union.
+`*` matches every comparable version. Pre-release, build-metadata, and invalid
+versions or ranges are reported separately rather than treated as vulnerable.
 
 ## Scope and security boundary
 

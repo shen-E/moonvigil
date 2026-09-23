@@ -56,6 +56,36 @@ test "accepts a manifest without an import field" {
 }
 
 ///|
+test "matches inclusive and exclusive range boundaries" {
+  assert_true(match_version("1.2.3", ">=1.2.3 <2.0.0") is Affected)
+  assert_true(match_version("1.2.2", ">=1.2.3 <2.0.0") is NotAffected)
+  assert_true(match_version("2.0.0", ">=1.2.3 <2.0.0") is NotAffected)
+  assert_true(match_version("1.0.0", ">1.0.0 <=1.2.0") is NotAffected)
+  assert_true(match_version("1.0.1", ">1.0.0 <=1.2.0") is Affected)
+  assert_true(match_version("1.2.0", ">1.0.0 <=1.2.0") is Affected)
+  assert_true(match_version("1.2.1", ">1.0.0 <=1.2.0") is NotAffected)
+}
+
+///|
+test "matches exact and union ranges" {
+  let affected = "=1.0.0 || >=2.0.0 <2.1.0"
+  assert_true(match_version("1.0.0", affected) is Affected)
+  assert_true(match_version("1.5.0", affected) is NotAffected)
+  assert_true(match_version("2.0.3", affected) is Affected)
+  assert_true(match_version("2.1.0", affected) is NotAffected)
+  assert_true(match_version("3.0.0", "3.0.0") is Affected)
+}
+
+///|
+test "keeps unsupported versions and ranges uncomparable" {
+  assert_true(match_version("1.0.0-alpha", "*") is Uncomparable)
+  assert_true(match_version("1.0.0+build.7", "*") is Uncomparable)
+  assert_true(match_version("1.0", ">=1.0.0") is Uncomparable)
+  assert_true(match_version("1.0.0", ">=1.0") is Uncomparable)
+  assert_true(match_version("1.0.0", ">=1.0.0 || ") is Uncomparable)
+}
+
+///|
 test "matches an affected dependency and leaves a fixed version clean" {
   let database = parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-1\",\"package_name\":\"example/insecure-http\",\"affected\":\">=0.1.0 <0.2.0\",\"severity\":\"high\",\"summary\":\"fixture\",\"fixed_version\":\"0.2.0\",\"references\":[]}]}",

@@ -149,7 +149,7 @@ pub fn scan(
   for dependency in dependencies {
     for advisory in database.advisories {
       if dependency.name == advisory.package_name {
-        let status = match_range(dependency.version, advisory.affected)
+        let status = match_version(dependency.version, advisory.affected)
         let finding = { dependency, advisory, status }
         match status {
           Affected => findings.push(finding)
@@ -240,81 +240,4 @@ fn sarif_level(severity : String) -> String {
     "medium" => "warning"
     _ => "note"
   }
-}
-
-///|
-fn match_range(version : String, affected : String) -> FindingStatus {
-  match (parse_version(version), parse_range(affected)) {
-    (Some(current), Some((lower, upper))) => {
-      let lower_ok = match lower {
-        Some(value) => compare_versions(current, value) >= 0
-        None => true
-      }
-      let upper_ok = match upper {
-        Some(value) => compare_versions(current, value) < 0
-        None => true
-      }
-      if lower_ok && upper_ok {
-        Affected
-      } else {
-        NotAffected
-      }
-    }
-    _ => Uncomparable
-  }
-}
-
-///|
-fn parse_range(text : String) -> (Array[Int]?, Array[Int]?)? {
-  let trimmed = text.trim().to_owned()
-  if trimmed == "*" {
-    Some((None, None))
-  } else {
-    let parts = trimmed.split(" ").to_array()
-    let mut lower : Array[Int]? = None
-    let mut upper : Array[Int]? = None
-    for part in parts {
-      let value = part.to_owned()
-      if value.has_prefix(">=") {
-        lower = parse_version(value[2:].to_owned())
-      } else if value.has_prefix("<") {
-        upper = parse_version(value[1:].to_owned())
-      } else {
-        return None
-      }
-    }
-    Some((lower, upper))
-  }
-}
-
-///|
-fn parse_version(version : String) -> Array[Int]? {
-  let raw = version.trim().to_owned()
-  let core = match raw.split_once("-") {
-    Some(pair) => pair.0.to_owned()
-    None => raw
-  }
-  let pieces = core.split(".").to_array()
-  if pieces.length() != 3 {
-    return None
-  }
-  let values : Array[Int] = []
-  for piece in pieces {
-    let parsed : Int = @strconv.from_str(piece) catch { _ => return None }
-    values.push(parsed)
-  }
-  Some(values)
-}
-
-///|
-fn compare_versions(left : Array[Int], right : Array[Int]) -> Int {
-  for index in 0..<3 {
-    if left[index] < right[index] {
-      return -1
-    }
-    if left[index] > right[index] {
-      return 1
-    }
-  }
-  0
 }
