@@ -21,6 +21,7 @@ pub struct ScanBaseline {
 pub enum BaselineFindingStatus {
   New
   Existing
+  Updated
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -29,6 +30,8 @@ pub struct BaselineSummary {
   snapshot_entries : Int
   new_findings : Int
   existing_findings : Int
+  updated_findings : Int
+  legacy_snapshot : Bool
   no_longer_detected : Array[BaselineEntry]
 } derive(Debug, Eq, ToJson)
 
@@ -208,6 +211,7 @@ pub fn apply_baseline(
   let findings : Array[Finding] = []
   let mut new_findings = 0
   let mut existing_findings = 0
+  let mut updated_findings = 0
   for finding in report.findings {
     let mut existing_index : Int? = None
     for index, entry in baseline.entries {
@@ -218,8 +222,13 @@ pub fn apply_baseline(
     let baseline_status = match existing_index {
       Some(index) => {
         matched[index] = true
-        existing_findings += 1
-        Existing
+        if baseline_entry_risk_matches_finding(baseline.entries[index], finding) {
+          existing_findings += 1
+          Existing
+        } else {
+          updated_findings += 1
+          Updated
+        }
       }
       None => {
         new_findings += 1
@@ -242,7 +251,7 @@ pub fn apply_baseline(
   }
   no_longer_detected.sort_by(baseline_entry_compare)
   {
-    schema_version: "4",
+    schema_version: "5",
     dependencies: report.dependencies,
     findings,
     uncomparable: report.uncomparable,
@@ -252,6 +261,8 @@ pub fn apply_baseline(
       snapshot_entries: baseline.entries.length(),
       new_findings,
       existing_findings,
+      updated_findings,
+      legacy_snapshot: baseline.schema_version == "1",
       no_longer_detected,
     }),
   }
@@ -368,4 +379,18 @@ fn baseline_entry_matches_finding(
   entry.advisory_id == finding.advisory.id &&
   entry.package_name == finding.dependency.name &&
   entry.version == finding.dependency.version
+}
+
+///|
+fn baseline_entry_risk_matches_finding(
+  entry : BaselineEntry,
+  finding : Finding,
+) -> Bool {
+  match (entry.affected, entry.severity, entry.fixed_version) {
+    (Some(affected), Some(severity), Some(fixed_version)) =>
+      affected == finding.advisory.affected &&
+      severity == finding.advisory.severity &&
+      fixed_version == finding.advisory.fixed_version
+    _ => true
+  }
 }

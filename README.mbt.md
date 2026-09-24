@@ -53,7 +53,7 @@ Each advisory needs at least one HTTP(S) reference with a valid authority. A
 fixed version is empty or a stable three-part version. The db validate command
 reports all semantic issues found in one pass.
 
-The JSON report schema is version 4 and includes dependency scopes, optional
+The JSON report schema is version 5 and includes dependency scopes, optional
 policy evidence, and optional baseline comparison state. A pinned
 public manifest fixture from moonbitlang/parser is provided under fixtures/real
 to exercise real-world manifest syntax; its source commit and license are
@@ -69,12 +69,13 @@ affected dependency exits 1, no affected dependencies exit 0, and invalid
 arguments or inputs exit 2. With a policy, only unsuppressed findings at or
 above the threshold block; uncomparable versions never block.
 
-When `--baseline <file>` is supplied, the default gate blocks only new affected
-findings. Existing findings and snapshot keys no longer detected remain visible
-but do not block. If a policy or `--fail-on` threshold is also supplied, that
-severity threshold applies to new findings only; active suppressions continue
-to suppress exact matching findings. Without a baseline, policy behavior is
-unchanged.
+When `--baseline <file>` is supplied, the default gate blocks new affected
+findings and findings whose advisory risk evidence changed. Existing findings
+and snapshot keys no longer detected remain visible but do not block. If a
+policy or `--fail-on` threshold is also supplied, that severity threshold
+applies to new and updated findings using the current advisory severity; active
+suppressions continue to suppress exact matching findings. Without a baseline,
+policy behavior is unchanged.
 
 Suppression rules require an advisory ID, canonical package name, exact stable
 version, non-empty reason, and an ISO expiry date. A rule applies only to that
@@ -85,10 +86,11 @@ Unmatched rules produce a warning but do not suppress anything. See
 
 New baseline snapshots store advisory ID, canonical package name, exact
 version, and the advisory's affected range, severity, and fixed version—never
-project paths. Schema-v1 snapshots remain readable as legacy snapshots. When a
-snapshot is supplied, findings are marked new or existing; keys in the
-snapshot that are no longer detected are reported separately without assuming
-they were remediated. Use
+project paths. Schema-v1 snapshots remain readable as legacy snapshots; they
+are explicitly identified because they cannot detect risk-evidence changes.
+When a snapshot is supplied, findings are marked new, existing, or updated;
+keys in the snapshot that are no longer detected are reported separately
+without assuming they were remediated. Use
 `--baseline-output <file>` to explicitly write a current snapshot. See
 [`docs/baseline.md`](docs/baseline.md) for the schema and comparison behavior.
 

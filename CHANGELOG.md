@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Marked baseline entries as updated when affected range, severity, or fixed
+  version changes; updated findings are visible in terminal, JSON, and SARIF
+  and participate in baseline-aware CI gates using their current severity.
+- Upgraded JSON reports to schema v5 with updated-finding counts and explicit
+  legacy-v1 baseline status.
 - Added schema-v2 baseline snapshots with validated advisory range, severity,
   and fixed-version evidence while retaining schema-v1 read compatibility.
 - Added a strict schema-v1 baseline snapshot API with deterministic creation,
@@ -9,8 +14,8 @@
   uncomparable dependency versions.
 - Added exact-key baseline comparison, new/existing finding state,
   no-longer-detected evidence, CLI snapshot input/output, and JSON report schema
-  v4 with terminal and SARIF comparison details.
-- Added baseline-aware CI gates: only new findings above the selected threshold
+  v5 with terminal and SARIF comparison details.
+- Added baseline-aware CI gates: new findings above the selected threshold
   block, while existing and suppressed findings remain visible and auditable.
 - Added strict advisory database validation with field-level diagnostics.
 - Rejected unsupported database schemas, unsafe range syntax, malformed fixed

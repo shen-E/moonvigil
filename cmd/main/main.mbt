@@ -191,7 +191,8 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
     Some(policy) => policy.blocking_findings > 0
     None =>
       match report.baseline {
-        Some(baseline) => baseline.new_findings > 0
+        Some(baseline) =>
+          baseline.new_findings > 0 || baseline.updated_findings > 0
         None => report.findings.length() > 0
       }
   }

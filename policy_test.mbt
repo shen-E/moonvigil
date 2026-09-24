@@ -67,7 +67,7 @@ test "uncomparable versions never block policy gates" {
 }
 
 ///|
-test "baseline gates block only new findings at the selected threshold" {
+test "baseline gates block new findings while existing findings remain visible" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
   let policy = empty_policy(fail_on="high")
   let known = apply_baseline(
@@ -133,7 +133,7 @@ test "exact advisory package and version suppression remains auditable" {
   let json = report_json(evaluated.report)
   let terminal = report_terminal(evaluated.report)
   let sarif = report_sarif(evaluated.report)
-  assert_true(json.contains("\"schema_version\": \"4\""))
+  assert_true(json.contains("\"schema_version\": \"5\""))
   assert_true(json.contains("short-lived compatibility exception"))
   assert_true(terminal.contains("[suppressed]"))
   assert_true(terminal.contains("short-lived compatibility exception"))

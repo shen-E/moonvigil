@@ -1,0 +1,13 @@
+{
+  "schema_version": "2",
+  "entries": [
+    {
+      "advisory_id": "MOONVIGIL-2026-0001",
+      "package_name": "example/insecure-http",
+      "version": "0.1.5",
+      "affected": "*",
+      "severity": "medium",
+      "fixed_version": "0.3.0"
+    }
+  ]
+}

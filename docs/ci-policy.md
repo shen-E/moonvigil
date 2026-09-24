@@ -43,10 +43,11 @@ findings exist, and `2` for invalid arguments or inputs. With a policy, `1`
 means at least one unsuppressed finding meets the gate; below-threshold and
 suppressed findings do not block.
 
-With `--baseline`, only new findings are eligible to block. A policy or
-`--fail-on` threshold is applied to new findings; existing findings and
-no-longer-detected snapshot entries remain in reports but do not block. An
-active exact-match suppression prevents a new finding from blocking while
-retaining its evidence. Without a policy or threshold, any new affected finding
-blocks. Invalid, malformed, or expired policies return `2` and prevent a scan
-report from being produced.
+With `--baseline`, new findings and findings with changed advisory risk
+evidence are eligible to block. A policy or `--fail-on` threshold is applied to
+their current severity; existing findings and no-longer-detected snapshot
+entries remain in reports but do not block. An active exact-match suppression
+prevents a new or updated finding from blocking while retaining its evidence.
+Without a policy or threshold, any new or updated affected finding blocks.
+Invalid, malformed, or expired policies return `2` and prevent a scan report
+from being produced.

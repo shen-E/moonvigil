@@ -290,7 +290,7 @@ pub fn scan(
     }
   }
   {
-    schema_version: "4",
+    schema_version: "5",
     dependencies,
     findings,
     uncomparable,
@@ -338,8 +338,13 @@ pub fn report_terminal(report : ScanReport) -> String {
   match report.baseline {
     Some(baseline) => {
       lines.push(
-        "Baseline: \{baseline.new_findings} new, \{baseline.existing_findings} existing, \{baseline.no_longer_detected.length()} no longer detected",
+        "Baseline: \{baseline.new_findings} new, \{baseline.existing_findings} existing, \{baseline.updated_findings} updated, \{baseline.no_longer_detected.length()} no longer detected",
       )
+      if baseline.legacy_snapshot {
+        lines.push(
+          "Warning: schema-v1 baseline has no advisory risk evidence; risk changes cannot be detected for its entries.",
+        )
+      }
       for entry in baseline.no_longer_detected {
         lines.push(
           "no longer detected: \{entry.advisory_id} \{entry.package_name}@\{entry.version}",
@@ -429,6 +434,8 @@ fn baseline_summary_json(baseline : BaselineSummary) -> Json {
     "snapshotEntries": Json::number(baseline.snapshot_entries.to_double()),
     "newFindings": Json::number(baseline.new_findings.to_double()),
     "existingFindings": Json::number(baseline.existing_findings.to_double()),
+    "updatedFindings": Json::number(baseline.updated_findings.to_double()),
+    "legacySnapshot": Json::boolean(baseline.legacy_snapshot),
     "noLongerDetected": Json::array(
       baseline.no_longer_detected.map(@json.to_json),
     ),
@@ -440,9 +447,11 @@ fn terminal_finding(finding : Finding, status : String) -> String {
   let display_status = match (finding.suppression, finding.baseline_status) {
     (Some(_), Some(New)) => "suppressed, new"
     (Some(_), Some(Existing)) => "suppressed, existing"
+    (Some(_), Some(Updated)) => "suppressed, updated"
     (Some(_), None) => "suppressed"
     (None, Some(New)) => "new"
     (None, Some(Existing)) => "existing"
+    (None, Some(Updated)) => "updated"
     (None, None) => status
   }
   let fixed_version = if finding.advisory.fixed_version == "" {
@@ -546,6 +555,7 @@ fn sarif_result(finding : Finding) -> Json {
   match finding.baseline_status {
     Some(New) => result["baselineState"] = Json::string("new")
     Some(Existing) => result["baselineState"] = Json::string("unchanged")
+    Some(Updated) => result["baselineState"] = Json::string("updated")
     None => ()
   }
   result["properties"] = Json::object(properties)

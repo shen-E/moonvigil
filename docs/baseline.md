@@ -41,14 +41,19 @@ moon run cmd/main --target native -- scan fixtures/affected --baseline-output ba
 ```
 
 Matching uses the exact triple `(advisory_id, package_name, version)`. A
-version change is therefore a new key. The report labels findings `new` or
-`existing`, and reports baseline keys not present in current affected findings
+version change is therefore a new key. For schema-v2 snapshots, changed
+affected range, severity, or fixed version marks a finding `updated`; unchanged
+risk evidence is `existing`. Schema-v1 entries lack that evidence, so matching
+them can only mark findings `existing`; the terminal report warns about this
+limitation. Baseline keys not present in current affected findings are reported
 as `no longer detected`; that label does not assert remediation because the
 advisory database may also have changed. Uncomparable versions are excluded
 from matching and never added to a snapshot.
 
 Snapshots are opt-in and are not auto-discovered or updated. The `--baseline`
 input path must be distinct from report and snapshot output paths.
-With a baseline, exit code `1` means at least one new, unsuppressed finding met
-the selected threshold (or any new finding when no explicit threshold is
-configured). Existing findings and no-longer-detected entries do not gate.
+With a baseline, exit code `1` means at least one new or updated, unsuppressed
+finding met the selected threshold (or any such finding when no explicit
+threshold is configured). Existing findings and no-longer-detected entries do
+not gate. JSON reports use schema v5 to represent updated state and baseline
+summary evidence.

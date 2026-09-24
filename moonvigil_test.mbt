@@ -220,6 +220,7 @@ test "rejects malformed v2 baseline risk evidence with field diagnostics" {
   let invalid = [
     "fixtures/baseline/invalid-v2-missing.json", "fixtures/baseline/invalid-v2-range.json",
     "fixtures/baseline/invalid-v2-severity.json", "fixtures/baseline/invalid-v2-fixed.json",
+    "fixtures/baseline/invalid-v2-type.json",
   ]
   for path in invalid {
     try parse_baseline(@fs.read_file_to_string(path)) catch {
@@ -274,7 +275,7 @@ test "compares exact baseline keys and serializes every comparison state" {
       "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-EXISTING\",\"package_name\":\"example/current\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-NEW\",\"package_name\":\"example/new\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-REMOVED\",\"package_name\":\"example/removed\",\"version\":\"3.0.0\"}]}",
     ),
   )
-  assert_eq(compared.schema_version, "4")
+  assert_eq(compared.schema_version, "5")
   assert_true(compared.findings[0].baseline_status is Some(Existing))
   assert_true(compared.findings[1].baseline_status is Some(New))
   assert_eq(compared.uncomparable[0].baseline_status, None)
@@ -282,19 +283,26 @@ test "compares exact baseline keys and serializes every comparison state" {
   assert_eq(summary.snapshot_entries, 3)
   assert_eq(summary.new_findings, 1)
   assert_eq(summary.existing_findings, 1)
+  assert_eq(summary.updated_findings, 0)
+  assert_true(summary.legacy_snapshot)
   assert_eq(summary.no_longer_detected.length(), 2)
   assert_eq(summary.no_longer_detected[0].advisory_id, "MV-NEW")
   assert_eq(summary.no_longer_detected[1].advisory_id, "MV-REMOVED")
   let json = report_json(compared)
   let terminal = report_terminal(compared)
   let sarif = report_sarif(compared)
-  assert_true(json.contains("\"schema_version\": \"4\""))
+  assert_true(json.contains("\"schema_version\": \"5\""))
+  assert_true(json.contains("\"legacy_snapshot\": true"))
   assert_true(json.contains("\"baseline_status\": \"Existing\""))
   assert_true(terminal.contains("[existing]"))
   assert_true(terminal.contains("[new]"))
+  assert_true(
+    terminal.contains("schema-v1 baseline has no advisory risk evidence"),
+  )
   assert_true(terminal.contains("no longer detected: MV-REMOVED"))
   assert_true(sarif.contains("\"baselineState\": \"unchanged\""))
   assert_true(sarif.contains("\"baselineState\": \"new\""))
+  assert_true(sarif.contains("\"legacySnapshot\": true"))
   assert_true(sarif.contains("\"moonvigilBaseline\""))
   let evaluated = evaluate_policy(
     compared,
@@ -303,6 +311,70 @@ test "compares exact baseline keys and serializes every comparison state" {
     today="2026-09-25",
   )
   assert_true(evaluated.report.findings[0].baseline_status is Some(Existing))
+}
+
+///|
+test "detects risk evidence updates and gates them using current severity" {
+  let dependency = [
+    Dependency::Dependency(
+      name="example/risk",
+      version="1.0.0",
+      source="moon.mod",
+    ),
+  ]
+  let old_database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-RISK\",\"package_name\":\"example/risk\",\"affected\":\"*\",\"severity\":\"medium\",\"summary\":\"risk fixture\",\"fixed_version\":\"2.0.0\",\"references\":[\"https://example.invalid/MV-RISK\"]}]}",
+  )
+  let old_snapshot = baseline_from_report(scan(dependency, old_database))
+  assert_eq(old_snapshot.schema_version, "2")
+  let unchanged = apply_baseline(scan(dependency, old_database), old_snapshot)
+  assert_true(unchanged.findings[0].baseline_status is Some(Existing))
+  let higher_database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-RISK\",\"package_name\":\"example/risk\",\"affected\":\">=1.0.0 <2.0.0\",\"severity\":\"high\",\"summary\":\"risk fixture\",\"fixed_version\":\"2.0.0\",\"references\":[\"https://example.invalid/MV-RISK\"]}]}",
+  )
+  let updated = apply_baseline(scan(dependency, higher_database), old_snapshot)
+  assert_eq(updated.schema_version, "5")
+  assert_true(updated.findings[0].baseline_status is Some(Updated))
+  assert_eq(updated.baseline.unwrap().updated_findings, 1)
+  let json = report_json(updated)
+  assert_true(json.contains("\"baseline_status\": \"Updated\""))
+  assert_true(json.contains("\"updated_findings\": 1"))
+  assert_true(report_terminal(updated).contains("[updated]"))
+  assert_true(report_sarif(updated).contains("\"baselineState\": \"updated\""))
+  let high_gate = evaluate_policy(
+    updated,
+    empty_policy(fail_on="high"),
+    None,
+    today="2026-09-25",
+  )
+  assert_true(high_gate.should_fail)
+  assert_eq(high_gate.report.policy.unwrap().blocking_findings, 1)
+
+  let lower_database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-RISK\",\"package_name\":\"example/risk\",\"affected\":\"*\",\"severity\":\"low\",\"summary\":\"risk fixture\",\"fixed_version\":\"2.0.0\",\"references\":[\"https://example.invalid/MV-RISK\"]}]}",
+  )
+  let lower_update = apply_baseline(
+    scan(dependency, lower_database),
+    old_snapshot,
+  )
+  assert_true(lower_update.findings[0].baseline_status is Some(Updated))
+  let lower_gate = evaluate_policy(
+    lower_update,
+    empty_policy(fail_on="high"),
+    None,
+    today="2026-09-25",
+  )
+  assert_false(lower_gate.should_fail)
+  assert_eq(lower_gate.report.policy.unwrap().blocking_findings, 0)
+
+  let fixed_version_database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-RISK\",\"package_name\":\"example/risk\",\"affected\":\"*\",\"severity\":\"medium\",\"summary\":\"risk fixture\",\"fixed_version\":\"3.0.0\",\"references\":[\"https://example.invalid/MV-RISK\"]}]}",
+  )
+  let fixed_update = apply_baseline(
+    scan(dependency, fixed_version_database),
+    old_snapshot,
+  )
+  assert_true(fixed_update.findings[0].baseline_status is Some(Updated))
 }
 
 ///|
@@ -554,8 +626,8 @@ test "serializes complete affected and uncomparable evidence" {
   assert_true(terminal.contains("affected: >=1.0.0 <2.0.0"))
   assert_true(terminal.contains("fixed: 2.0.0"))
   assert_true(terminal.contains("[uncomparable]"))
-  assert_eq(report.schema_version, "4")
-  assert_true(json.contains("\"schema_version\": \"4\""))
+  assert_eq(report.schema_version, "5")
+  assert_true(json.contains("\"schema_version\": \"5\""))
   assert_true(sarif.contains("installedVersion"))
   assert_true(sarif.contains("matchStatus"))
   assert_true(sarif.contains("uncomparable"))

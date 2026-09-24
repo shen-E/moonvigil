@@ -94,6 +94,8 @@ jobs:
           baseline_new_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/affected.json --format sarif --output "$output_dir/baseline-existing.sarif"
           baseline_existing_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/risk-changed.json --format json --output "$output_dir/baseline-updated.json"
+          baseline_updated_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/initial.json --format json --output "$output_dir/baseline-no-longer-detected.json"
           baseline_stale_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline-output "$output_dir/generated-baseline.json" --format json --output "$output_dir/generated-report.json"
@@ -144,6 +146,7 @@ jobs:
           test "$malformed_policy_exit" -eq 2
           test "$baseline_new_exit" -eq 1
           test "$baseline_existing_exit" -eq 0
+          test "$baseline_updated_exit" -eq 1
           test "$baseline_stale_exit" -eq 1
           test "$baseline_generation_exit" -eq 1
           test "$repeated_baseline_exit" -eq 0
@@ -167,8 +170,10 @@ jobs:
           grep -q '"test"' "$output_dir/modern.json"
           test -s "$output_dir/suppressed.json"
           test -s "$output_dir/suppressed.sarif"
-          grep -q '"schema_version": "4"' "$output_dir/suppressed.json"
+          grep -q '"schema_version": "5"' "$output_dir/suppressed.json"
           grep -q '"baselineState": "unchanged"' "$output_dir/baseline-existing.sarif"
+          grep -q '"baseline_status": "Updated"' "$output_dir/baseline-updated.json"
+          grep -q '"updated_findings": 1' "$output_dir/baseline-updated.json"
           grep -q '"no_longer_detected"' "$output_dir/baseline-no-longer-detected.json"
           grep -q '"MV-BASELINE-0001"' "$output_dir/baseline-no-longer-detected.json"
           grep -q '"baseline_status": "New"' "$output_dir/baseline-new.json"

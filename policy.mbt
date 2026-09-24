@@ -216,7 +216,11 @@ pub fn evaluate_policy(
       suppressed_findings += 1
     } else {
       let baseline_allows_gate = match report.baseline {
-        Some(_) => finding.baseline_status is Some(New)
+        Some(_) =>
+          match finding.baseline_status {
+            Some(New) | Some(Updated) => true
+            _ => false
+          }
         None => true
       }
       if baseline_allows_gate &&
@@ -246,7 +250,7 @@ pub fn evaluate_policy(
     unmatched_suppressions,
   }
   let evaluated_report = {
-    schema_version: "4",
+    schema_version: "5",
     dependencies: report.dependencies,
     findings,
     uncomparable: report.uncomparable,
