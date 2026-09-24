@@ -1,4 +1,7 @@
 import {
   "moonbitlang/core/json",
-  "moonbitlang/core/strconv",
 }
+
+import {
+  "moonbitlang/x/fs",
+} for "test"

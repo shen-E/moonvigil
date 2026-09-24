@@ -1,0 +1,6 @@
+{
+  "name": "fixture/modern-preferred",
+  "import": {
+    "example/package": "9.9.9"
+  }
+}

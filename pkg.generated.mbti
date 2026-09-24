@@ -7,6 +7,12 @@ import {
 }
 
 // Values
+pub fn apply_package_imports(Array[Dependency], Array[PackageImport]) -> Array[Dependency]
+
+pub fn dependency_conflicts(Array[Dependency]) -> Array[DependencyConflict]
+
+pub fn dependency_scope_name(DependencyScope) -> String
+
 pub fn inventory_from_dependencies(Array[Dependency]) -> Inventory
 
 pub fn match_version(String, String) -> FindingStatus
@@ -14,6 +20,10 @@ pub fn match_version(String, String) -> FindingStatus
 pub fn parse_database(String) -> AdvisoryDatabase raise
 
 pub fn parse_manifest(String, source~ : String) -> Array[Dependency] raise
+
+pub fn parse_moon_mod(String, source~ : String) -> Array[Dependency] raise
+
+pub fn parse_moon_pkg(String, source~ : String) -> Array[PackageImport] raise
 
 pub fn report_json(ScanReport) -> String
 
@@ -23,9 +33,21 @@ pub fn report_terminal(ScanReport) -> String
 
 pub fn sbom_json(Array[Dependency]) -> String
 
-pub fn scan(Array[Dependency], AdvisoryDatabase) -> ScanReport
+pub fn scan(Array[Dependency], AdvisoryDatabase) -> ScanReport raise
+
+pub fn validate_database(AdvisoryDatabase) -> Unit raise
 
 // Errors
+pub(all) suberror DatabaseValidationError {
+  UnsupportedSchemaVersion(String)
+  InvalidDatabaseField(field~ : String, reason~ : String)
+  InvalidAdvisory(index~ : Int, id~ : String, field~ : String, reason~ : String)
+  MultipleInvalidAdvisories(Array[DatabaseIssue])
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror ManifestParseError {
+  InvalidManifest(source~ : String, line~ : Int, reason~ : String)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub struct Advisory {
@@ -43,12 +65,34 @@ pub struct AdvisoryDatabase {
   advisories : Array[Advisory]
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 
+pub(all) struct DatabaseIssue {
+  index : Int
+  id : String
+  field : String
+  reason : String
+} derive(Eq, @debug.Debug)
+
 pub struct Dependency {
   name : String
   version : String
   source : String
+  aliases : Array[String]
+  scopes : Array[DependencyScope]
 } derive(Eq, ToJson, @debug.Debug)
-pub fn Dependency::Dependency(name~ : String, version~ : String, source~ : String) -> Self
+pub fn Dependency::Dependency(name~ : String, version~ : String, source~ : String, aliases? : Array[String], scopes? : Array[DependencyScope]) -> Self
+
+pub struct DependencyConflict {
+  name : String
+  versions : Array[String]
+  sources : Array[String]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub enum DependencyScope {
+  Runtime
+  Test
+  WhiteboxTest
+  Other
+} derive(Eq, @debug.Debug)
 
 pub struct Finding {
   dependency : Dependency
@@ -64,6 +108,14 @@ pub enum FindingStatus {
 
 pub struct Inventory {
   dependencies : Array[Dependency]
+  conflicts : Array[DependencyConflict]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct PackageImport {
+  package_name : String
+  alias_name : String
+  scope : DependencyScope
+  source : String
 } derive(Eq, ToJson, @debug.Debug)
 
 pub struct ScanReport {
@@ -71,6 +123,7 @@ pub struct ScanReport {
   dependencies : Array[Dependency]
   findings : Array[Finding]
   uncomparable : Array[Finding]
+  conflicts : Array[DependencyConflict]
 } derive(Eq, ToJson, @debug.Debug)
 
 // Type aliases

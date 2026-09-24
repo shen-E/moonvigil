@@ -26,6 +26,7 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          "$HOME/.moon/bin/moon" update
       - name: Verify formatting
         run: moon fmt --check
       - name: Type check
@@ -67,6 +68,8 @@ jobs:
           demo_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --output "$output_dir"
           output_error_exit=$?
+          moon run cmd/main --target native -- scan fixtures/modern-preferred --db fixtures/empty-database.json --format json --output "$output_dir/modern.json"
+          modern_manifest_exit=$?
           set -e
           test "$affected_exit" -eq 1
           test "$unknown_exit" -eq 0
@@ -80,8 +83,15 @@ jobs:
           test "$invalid_scan_database_exit" -eq 2
           test "$demo_exit" -eq 1
           test "$output_error_exit" -eq 2
+          test "$modern_manifest_exit" -eq 0
           test -s "$output_dir/affected.json"
           test -s "$output_dir/unknown.sarif"
           test -s "$output_dir/demo.json"
+          test -s "$output_dir/modern.json"
+          grep -q '"version": "1.2.3"' "$output_dir/modern.json"
+          ! grep -q '"version": "9.9.9"' "$output_dir/modern.json"
+          grep -q '"source": "moon.mod"' "$output_dir/modern.json"
+          grep -q '"aliases": \[' "$output_dir/modern.json"
+          grep -q '"test"' "$output_dir/modern.json"
           moon run cmd/main --target native -- sbom fixtures/affected --output "$output_dir/components.json"
           test -s "$output_dir/components.json"

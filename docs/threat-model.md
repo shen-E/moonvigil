@@ -1,6 +1,8 @@
 # Threat model and boundaries
 
-MoonVigil reads manifest JSON and an operator-supplied local advisory database.
+MoonVigil reads modern moon.mod / moon.pkg manifests, legacy JSON manifests,
+and an operator-supplied local advisory database. Module manifests provide
+direct dependency versions; package imports annotate runtime/test usage.
 It does not execute application code, resolve packages from the network, or
 send dependency metadata anywhere. A finding means that a declared dependency
 version falls inside a locally defined range; it is not proof that a reachable

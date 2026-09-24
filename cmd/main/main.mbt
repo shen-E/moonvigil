@@ -30,6 +30,10 @@ fn main {
       }
       exit_with_status(2)
     }
+    @vigil.ManifestParseError::InvalidManifest(source~, line~, reason~) => {
+      println("MoonVigil error: \{source}:\{line}: \{reason}")
+      exit_with_status(2)
+    }
     error => {
       println("MoonVigil error: \{error}")
       exit_with_status(2)
@@ -114,22 +118,38 @@ fn discover_dependencies(path : String) -> Array[@vigil.Dependency] raise {
   let manifests : Array[String] = []
   collect_manifests(path, manifests)
   let dependencies : Array[@vigil.Dependency] = []
+  let package_imports : Array[@vigil.PackageImport] = []
   for manifest in manifests {
-    let parsed = @vigil.parse_manifest(
-      @fs.read_file_to_string(manifest),
-      source=manifest,
-    )
-    for dependency in parsed {
-      dependencies.push(dependency)
+    let source = relative_manifest_path(path, manifest)
+    let text = @fs.read_file_to_string(manifest)
+    if manifest.has_suffix("moon.mod") {
+      for dependency in @vigil.parse_moon_mod(text, source~) {
+        dependencies.push(dependency)
+      }
+    } else if manifest.has_suffix("moon.pkg") {
+      for package_import in @vigil.parse_moon_pkg(text, source~) {
+        package_imports.push(package_import)
+      }
+    } else {
+      for dependency in @vigil.parse_manifest(text, source~) {
+        dependencies.push(dependency)
+      }
     }
   }
-  @vigil.inventory_from_dependencies(dependencies).dependencies
+  let inventory = @vigil.inventory_from_dependencies(dependencies).dependencies
+  @vigil.apply_package_imports(inventory, package_imports)
 }
 
 ///|
 fn collect_manifests(path : String, manifests : Array[String]) -> Unit raise {
   if @fs.is_file(path) {
-    if path.has_suffix("moon.mod.json") || path.has_suffix("moon.pkg.json") {
+    if (
+        path.has_suffix("moon.mod") ||
+        path.has_suffix("moon.pkg") ||
+        path.has_suffix("moon.mod.json") ||
+        path.has_suffix("moon.pkg.json")
+      ) &&
+      !is_shadowed_legacy_manifest(path) {
       manifests.push(path)
     }
   } else if @fs.is_dir(path) {
@@ -141,6 +161,52 @@ fn collect_manifests(path : String, manifests : Array[String]) -> Unit raise {
       }
     }
   }
+}
+
+///|
+fn is_shadowed_legacy_manifest(path : String) -> Bool {
+  if !path.has_suffix(".json") {
+    return false
+  }
+  let parts = normalize_path_separators(path).split("/").to_array()
+  if parts.length() < 2 {
+    return false
+  }
+  let mut parent = parts[0].to_owned()
+  for index in 1..<(parts.length() - 1) {
+    parent = "\{parent}/\{parts[index]}"
+  }
+  let modern_name = if path.has_suffix("moon.mod.json") {
+    "moon.mod"
+  } else if path.has_suffix("moon.pkg.json") {
+    "moon.pkg"
+  } else {
+    ""
+  }
+  modern_name != "" && @fs.path_exists("\{parent}/\{modern_name}")
+}
+
+///|
+fn relative_manifest_path(root : String, manifest : String) -> String {
+  let normalized_root = normalize_path_separators(root)
+  let normalized_manifest = normalize_path_separators(manifest)
+  if normalized_manifest.has_prefix("\{normalized_root}/") {
+    normalized_manifest[normalized_root.length() + 1:].to_owned()
+  } else if normalized_manifest == normalized_root {
+    normalized_manifest
+    .split("/")
+    .to_array()
+    .last()
+    .unwrap_or("manifest")
+    .to_owned()
+  } else {
+    normalized_manifest
+  }
+}
+
+///|
+fn normalize_path_separators(path : String) -> String {
+  path.split("\\").to_array().join("/")
 }
 
 ///|

@@ -1,0 +1,3 @@
+import {
+  "example/package/client" @client,
+} for "test"
