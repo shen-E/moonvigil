@@ -214,9 +214,16 @@ pub fn evaluate_policy(
     }
     if selected is Some(_) {
       suppressed_findings += 1
-    } else if policy_severity_rank(finding.advisory.severity) >=
-      policy_severity_rank(fail_on) {
-      blocking_findings += 1
+    } else {
+      let baseline_allows_gate = match report.baseline {
+        Some(_) => finding.baseline_status is Some(New)
+        None => true
+      }
+      if baseline_allows_gate &&
+        policy_severity_rank(finding.advisory.severity) >=
+        policy_severity_rank(fail_on) {
+        blocking_findings += 1
+      }
     }
     findings.push({
       dependency: finding.dependency,

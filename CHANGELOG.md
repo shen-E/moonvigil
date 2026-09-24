@@ -8,6 +8,8 @@
 - Added exact-key baseline comparison, new/existing finding state,
   no-longer-detected evidence, CLI snapshot input/output, and JSON report schema
   v4 with terminal and SARIF comparison details.
+- Added baseline-aware CI gates: only new findings above the selected threshold
+  block, while existing and suppressed findings remain visible and auditable.
 - Added strict advisory database validation with field-level diagnostics.
 - Rejected unsupported database schemas, unsafe range syntax, malformed fixed
   versions, invalid severities, duplicate IDs, and missing HTTP(S) evidence.

@@ -64,10 +64,17 @@ that the project has a known vulnerability.
 
 Policy files are loaded only when explicitly passed with `--policy`; MoonVigil
 does not auto-discover a policy. `--fail-on` can override the configured
-severity threshold. Without either option, existing behavior is unchanged:
-any affected dependency exits 1, no affected dependencies exits 0, and invalid
+severity threshold. Without a baseline, existing behavior is unchanged: any
+affected dependency exits 1, no affected dependencies exit 0, and invalid
 arguments or inputs exit 2. With a policy, only unsuppressed findings at or
 above the threshold block; uncomparable versions never block.
+
+When `--baseline <file>` is supplied, the default gate blocks only new affected
+findings. Existing findings and snapshot keys no longer detected remain visible
+but do not block. If a policy or `--fail-on` threshold is also supplied, that
+severity threshold applies to new findings only; active suppressions continue
+to suppress exact matching findings. Without a baseline, policy behavior is
+unchanged.
 
 Suppression rules require an advisory ID, canonical package name, exact stable
 version, non-empty reason, and an ISO expiry date. A rule applies only to that

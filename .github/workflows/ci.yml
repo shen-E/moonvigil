@@ -100,6 +100,16 @@ jobs:
           baseline_generation_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline "$output_dir/generated-baseline.json" --format json --output "$output_dir/repeated-baseline.json"
           repeated_baseline_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/affected.json --policy fixtures/policy/high-gate.json --format json --output "$output_dir/baseline-policy-existing.json"
+          baseline_policy_existing_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/high-gate.json --format json --output "$output_dir/baseline-policy-new.json"
+          baseline_policy_new_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --fail-on critical --format json --output "$output_dir/baseline-critical-override.json"
+          baseline_critical_override_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/exact-suppression.json --format terminal > "$output_dir/baseline-suppressed-new.txt"
+          baseline_suppressed_new_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/exact-suppression.json --format sarif --output "$output_dir/baseline-suppressed-new.sarif"
+          baseline_suppressed_sarif_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/duplicate-entry.json
           invalid_baseline_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --baseline-output fixtures/baseline/empty.json
@@ -133,10 +143,15 @@ jobs:
           test "$expired_policy_exit" -eq 2
           test "$malformed_policy_exit" -eq 2
           test "$baseline_new_exit" -eq 1
-          test "$baseline_existing_exit" -eq 1
+          test "$baseline_existing_exit" -eq 0
           test "$baseline_stale_exit" -eq 1
           test "$baseline_generation_exit" -eq 1
-          test "$repeated_baseline_exit" -eq 1
+          test "$repeated_baseline_exit" -eq 0
+          test "$baseline_policy_existing_exit" -eq 0
+          test "$baseline_policy_new_exit" -eq 1
+          test "$baseline_critical_override_exit" -eq 0
+          test "$baseline_suppressed_new_exit" -eq 0
+          test "$baseline_suppressed_sarif_exit" -eq 0
           test "$invalid_baseline_exit" -eq 2
           test "$conflicting_baseline_paths_exit" -eq 2
           test "$invalid_threshold_exit" -eq 2
@@ -160,6 +175,14 @@ jobs:
           grep -q '"baselineState": "new"' "$output_dir/baseline-new.json"
           grep -q '"MOONVIGIL-2026-0001"' "$output_dir/generated-baseline.json"
           grep -q '"baseline_status": "Existing"' "$output_dir/repeated-baseline.json"
+          grep -q '"blocking_findings": 0' "$output_dir/baseline-policy-existing.json"
+          grep -q '"blocking_findings": 1' "$output_dir/baseline-policy-new.json"
+          grep -q '"blocking_findings": 0' "$output_dir/baseline-critical-override.json"
+          grep -q '"baseline_status": "Existing"' "$output_dir/baseline-policy-existing.json"
+          grep -q '"baseline_status": "New"' "$output_dir/baseline-policy-new.json"
+          grep -q '\[suppressed, new\]' "$output_dir/baseline-suppressed-new.txt"
+          grep -q '"baselineState": "new"' "$output_dir/baseline-suppressed-new.sarif"
+          grep -q '"kind": "external"' "$output_dir/baseline-suppressed-new.sarif"
           grep -q '"suppressed_findings": 1' "$output_dir/suppressed.json"
           grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.json"
           grep -q '\[suppressed\]' "$output_dir/suppressed.txt"

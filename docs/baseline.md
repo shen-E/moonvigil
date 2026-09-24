@@ -43,3 +43,6 @@ from matching and never added to a snapshot.
 
 Snapshots are opt-in and are not auto-discovered or updated. The `--baseline`
 input path must be distinct from report and snapshot output paths.
+With a baseline, exit code `1` means at least one new, unsuppressed finding met
+the selected threshold (or any new finding when no explicit threshold is
+configured). Existing findings and no-longer-detected entries do not gate.

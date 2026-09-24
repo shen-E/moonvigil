@@ -67,6 +67,58 @@ test "uncomparable versions never block policy gates" {
 }
 
 ///|
+test "baseline gates block only new findings at the selected threshold" {
+  let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
+  let policy = empty_policy(fail_on="high")
+  let known = apply_baseline(
+    report,
+    parse_baseline(
+      "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-REMOVED\",\"package_name\":\"example/old\",\"version\":\"2.0.0\"}]}",
+    ),
+  )
+  let known_result = evaluate_policy(known, policy, None, today="2026-09-25")
+  assert_false(known_result.should_fail)
+  assert_eq(known_result.report.policy.unwrap().blocking_findings, 0)
+  assert_eq(
+    known_result.report.baseline.unwrap().no_longer_detected.length(),
+    1,
+  )
+
+  let empty = parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}")
+  let fresh = apply_baseline(report, empty)
+  let fresh_result = evaluate_policy(fresh, policy, None, today="2026-09-25")
+  assert_true(fresh_result.should_fail)
+  assert_eq(fresh_result.report.policy.unwrap().blocking_findings, 1)
+  assert_true(fresh_result.report.findings[0].baseline_status is Some(New))
+}
+
+///|
+test "baseline policy suppression remains visible and does not gate a new finding" {
+  let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
+  let fresh = apply_baseline(
+    report,
+    parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}"),
+  )
+  let policy = parse_policy(
+    policy_text("MV-POLICY", "example/p", "1.0.0", "2099-12-31"),
+    today="2026-09-25",
+  )
+  let result = evaluate_policy(fresh, policy, None, today="2026-09-25")
+  assert_false(result.should_fail)
+  assert_true(result.report.findings[0].baseline_status is Some(New))
+  assert_true(result.report.findings[0].suppression is Some(_))
+  assert_eq(result.report.policy.unwrap().suppressed_findings, 1)
+  assert_eq(result.report.baseline.unwrap().new_findings, 1)
+  assert_true(
+    report_json(result.report).contains("\"baseline_status\": \"New\""),
+  )
+  assert_true(report_terminal(result.report).contains("[suppressed, new]"))
+  let sarif = report_sarif(result.report)
+  assert_true(sarif.contains("\"baselineState\": \"new\""))
+  assert_true(sarif.contains("\"kind\": \"external\""))
+}
+
+///|
 test "exact advisory package and version suppression remains auditable" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
   let policy = parse_policy(

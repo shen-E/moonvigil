@@ -37,9 +37,16 @@ external accepted suppression with its justification, following
 Rules that match no finding generate a terminal warning and remain listed in
 JSON/SARIF policy metadata; they do not suppress other packages or versions.
 
-Without a policy or CLI threshold, exit codes retain their original meaning:
-`0` for no affected findings, `1` when affected findings exist, and `2` for
-invalid arguments or inputs. With a policy, `1` means at least one unsuppressed
-finding meets the gate; below-threshold and suppressed findings do not block.
-Invalid, malformed, or expired policies return `2` and prevent a scan report
-from being produced.
+Without a baseline, exit codes retain their original meaning when no policy or
+CLI threshold is supplied: `0` for no affected findings, `1` when affected
+findings exist, and `2` for invalid arguments or inputs. With a policy, `1`
+means at least one unsuppressed finding meets the gate; below-threshold and
+suppressed findings do not block.
+
+With `--baseline`, only new findings are eligible to block. A policy or
+`--fail-on` threshold is applied to new findings; existing findings and
+no-longer-detected snapshot entries remain in reports but do not block. An
+active exact-match suppression prevents a new finding from blocking while
+retaining its evidence. Without a policy or threshold, any new affected finding
+blocks. Invalid, malformed, or expired policies return `2` and prevent a scan
+report from being produced.
