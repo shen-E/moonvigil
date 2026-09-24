@@ -223,6 +223,7 @@ pub fn evaluate_policy(
       advisory: finding.advisory,
       status: finding.status,
       suppression: selected,
+      baseline_status: finding.baseline_status,
     })
   }
   let unmatched_suppressions : Array[PolicySuppression] = []
@@ -238,12 +239,13 @@ pub fn evaluate_policy(
     unmatched_suppressions,
   }
   let evaluated_report = {
-    schema_version: "3",
+    schema_version: "4",
     dependencies: report.dependencies,
     findings,
     uncomparable: report.uncomparable,
     conflicts: report.conflicts,
     policy: Some(policy_summary),
+    baseline: report.baseline,
   }
   { report: evaluated_report, should_fail: blocking_findings > 0 }
 }

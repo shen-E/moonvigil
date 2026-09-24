@@ -218,6 +218,7 @@ pub struct Finding {
   advisory : Advisory
   status : FindingStatus
   suppression : PolicySuppression?
+  baseline_status : BaselineFindingStatus?
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -228,6 +229,7 @@ pub struct ScanReport {
   uncomparable : Array[Finding]
   conflicts : Array[DependencyConflict]
   policy : PolicySummary?
+  baseline : BaselineSummary?
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -272,7 +274,13 @@ pub fn scan(
     for advisory in database.advisories {
       if dependency.name == advisory.package_name {
         let status = match_version(dependency.version, advisory.affected)
-        let finding = { dependency, advisory, status, suppression: None }
+        let finding = {
+          dependency,
+          advisory,
+          status,
+          suppression: None,
+          baseline_status: None,
+        }
         match status {
           Affected => findings.push(finding)
           Uncomparable => uncomparable.push(finding)
@@ -282,12 +290,13 @@ pub fn scan(
     }
   }
   {
-    schema_version: "3",
+    schema_version: "4",
     dependencies,
     findings,
     uncomparable,
     conflicts: dependency_conflicts(dependencies),
     policy: None,
+    baseline: None,
   }
 }
 
@@ -326,6 +335,19 @@ pub fn report_terminal(report : ScanReport) -> String {
     }
     None => ()
   }
+  match report.baseline {
+    Some(baseline) => {
+      lines.push(
+        "Baseline: \{baseline.new_findings} new, \{baseline.existing_findings} existing, \{baseline.no_longer_detected.length()} no longer detected",
+      )
+      for entry in baseline.no_longer_detected {
+        lines.push(
+          "no longer detected: \{entry.advisory_id} \{entry.package_name}@\{entry.version}",
+        )
+      }
+    }
+    None => ()
+  }
   for finding in report.findings {
     lines.push(terminal_finding(finding, "affected"))
   }
@@ -355,6 +377,11 @@ pub fn report_sarif(report : ScanReport) -> String {
   }
   match report.policy {
     Some(policy) => run_properties["policy"] = policy_summary_json(policy)
+    None => ()
+  }
+  match report.baseline {
+    Some(baseline) =>
+      run_properties["moonvigilBaseline"] = baseline_summary_json(baseline)
     None => ()
   }
   Json::object({
@@ -397,10 +424,26 @@ fn policy_summary_json(policy : PolicySummary) -> Json {
 }
 
 ///|
+fn baseline_summary_json(baseline : BaselineSummary) -> Json {
+  Json::object({
+    "snapshotEntries": Json::number(baseline.snapshot_entries.to_double()),
+    "newFindings": Json::number(baseline.new_findings.to_double()),
+    "existingFindings": Json::number(baseline.existing_findings.to_double()),
+    "noLongerDetected": Json::array(
+      baseline.no_longer_detected.map(@json.to_json),
+    ),
+  })
+}
+
+///|
 fn terminal_finding(finding : Finding, status : String) -> String {
-  let display_status = match finding.suppression {
-    Some(_) => "suppressed"
-    None => status
+  let display_status = match (finding.suppression, finding.baseline_status) {
+    (Some(_), Some(New)) => "suppressed, new"
+    (Some(_), Some(Existing)) => "suppressed, existing"
+    (Some(_), None) => "suppressed"
+    (None, Some(New)) => "new"
+    (None, Some(Existing)) => "existing"
+    (None, None) => status
   }
   let fixed_version = if finding.advisory.fixed_version == "" {
     "not available"
@@ -498,6 +541,11 @@ fn sarif_result(finding : Finding) -> Json {
         }),
       ])
     }
+    None => ()
+  }
+  match finding.baseline_status {
+    Some(New) => result["baselineState"] = Json::string("new")
+    Some(Existing) => result["baselineState"] = Json::string("unchanged")
     None => ()
   }
   result["properties"] = Json::object(properties)

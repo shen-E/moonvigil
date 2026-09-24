@@ -25,6 +25,21 @@ versions are rejected rather than normalized. Findings whose version cannot
 be compared are not included.
 
 Library callers can use `baseline_from_report`, `parse_baseline`,
-`validate_baseline`, and `baseline_json`. CLI baseline comparison and CI gate
-integration are delivered in subsequent increments; until then the baseline
-API is intended for tooling experiments and fixture validation.
+`validate_baseline`, `baseline_json`, and `apply_baseline`. The CLI accepts
+`--baseline <file>` to compare the current scan with a snapshot and
+`--baseline-output <file>` to explicitly write a new snapshot:
+
+```sh
+moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
+moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
+```
+
+Matching uses the exact triple `(advisory_id, package_name, version)`. A
+version change is therefore a new key. The report labels findings `new` or
+`existing`, and reports baseline keys not present in current affected findings
+as `no longer detected`; that label does not assert remediation because the
+advisory database may also have changed. Uncomparable versions are excluded
+from matching and never added to a snapshot.
+
+Snapshots are opt-in and are not auto-discovered or updated. The `--baseline`
+input path must be distinct from report and snapshot output paths.

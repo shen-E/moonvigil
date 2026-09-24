@@ -90,6 +90,20 @@ jobs:
           expired_policy_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/malformed.json
           malformed_policy_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --format json --output "$output_dir/baseline-new.json"
+          baseline_new_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/affected.json --format sarif --output "$output_dir/baseline-existing.sarif"
+          baseline_existing_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/initial.json --format json --output "$output_dir/baseline-no-longer-detected.json"
+          baseline_stale_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline-output "$output_dir/generated-baseline.json" --format json --output "$output_dir/generated-report.json"
+          baseline_generation_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline "$output_dir/generated-baseline.json" --format json --output "$output_dir/repeated-baseline.json"
+          repeated_baseline_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/duplicate-entry.json
+          invalid_baseline_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --baseline-output fixtures/baseline/empty.json
+          conflicting_baseline_paths_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on urgent
           invalid_threshold_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy
@@ -118,6 +132,13 @@ jobs:
           test "$uncomparable_gate_exit" -eq 0
           test "$expired_policy_exit" -eq 2
           test "$malformed_policy_exit" -eq 2
+          test "$baseline_new_exit" -eq 1
+          test "$baseline_existing_exit" -eq 1
+          test "$baseline_stale_exit" -eq 1
+          test "$baseline_generation_exit" -eq 1
+          test "$repeated_baseline_exit" -eq 1
+          test "$invalid_baseline_exit" -eq 2
+          test "$conflicting_baseline_paths_exit" -eq 2
           test "$invalid_threshold_exit" -eq 2
           test "$missing_policy_value_exit" -eq 2
           test -s "$output_dir/affected.json"
@@ -131,7 +152,14 @@ jobs:
           grep -q '"test"' "$output_dir/modern.json"
           test -s "$output_dir/suppressed.json"
           test -s "$output_dir/suppressed.sarif"
-          grep -q '"schema_version": "3"' "$output_dir/suppressed.json"
+          grep -q '"schema_version": "4"' "$output_dir/suppressed.json"
+          grep -q '"baselineState": "unchanged"' "$output_dir/baseline-existing.sarif"
+          grep -q '"no_longer_detected"' "$output_dir/baseline-no-longer-detected.json"
+          grep -q '"MV-BASELINE-0001"' "$output_dir/baseline-no-longer-detected.json"
+          grep -q '"baseline_status": "New"' "$output_dir/baseline-new.json"
+          grep -q '"baselineState": "new"' "$output_dir/baseline-new.json"
+          grep -q '"MOONVIGIL-2026-0001"' "$output_dir/generated-baseline.json"
+          grep -q '"baseline_status": "Existing"' "$output_dir/repeated-baseline.json"
           grep -q '"suppressed_findings": 1' "$output_dir/suppressed.json"
           grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.json"
           grep -q '\[suppressed\]' "$output_dir/suppressed.txt"

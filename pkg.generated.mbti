@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn apply_baseline(ScanReport, ScanBaseline) -> ScanReport raise
+
 pub fn apply_package_imports(Array[Dependency], Array[PackageImport]) -> Array[Dependency]
 
 pub fn baseline_from_report(ScanReport) -> ScanBaseline
@@ -99,6 +101,18 @@ pub struct BaselineEntry {
   version : String
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 
+pub enum BaselineFindingStatus {
+  New
+  Existing
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct BaselineSummary {
+  snapshot_entries : Int
+  new_findings : Int
+  existing_findings : Int
+  no_longer_detected : Array[BaselineEntry]
+} derive(Eq, ToJson, @debug.Debug)
+
 pub(all) struct DatabaseIssue {
   index : Int
   id : String
@@ -133,6 +147,7 @@ pub struct Finding {
   advisory : Advisory
   status : FindingStatus
   suppression : PolicySuppression?
+  baseline_status : BaselineFindingStatus?
 } derive(Eq, ToJson, @debug.Debug)
 
 pub enum FindingStatus {
@@ -191,6 +206,7 @@ pub struct ScanReport {
   uncomparable : Array[Finding]
   conflicts : Array[DependencyConflict]
   policy : PolicySummary?
+  baseline : BaselineSummary?
 } derive(Eq, ToJson, @debug.Debug)
 
 // Type aliases

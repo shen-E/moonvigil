@@ -1,6 +1,32 @@
 ///|
 fn main {
   dispatch(@env.args()) catch {
+    @vigil.BaselineValidationError::UnsupportedBaselineSchemaVersion(version) => {
+      println(
+        "MoonVigil error: baseline schema_version must be \"1\", got \"\{version}\"",
+      )
+      exit_with_status(2)
+    }
+    @vigil.BaselineValidationError::InvalidBaselineField(field~, reason~) => {
+      println("MoonVigil error: baseline field \{field}: \{reason}")
+      exit_with_status(2)
+    }
+    @vigil.BaselineValidationError::InvalidBaselineEntry(
+      index~,
+      field~,
+      reason~
+    ) => {
+      println(
+        "MoonVigil error: baseline entry #\{index} field \{field}: \{reason}",
+      )
+      exit_with_status(2)
+    }
+    @vigil.BaselineValidationError::DuplicateBaselineEntry(index~, advisory_id~) => {
+      println(
+        "MoonVigil error: baseline entry #\{index} duplicates \{advisory_id}",
+      )
+      exit_with_status(2)
+    }
     @vigil.DatabaseValidationError::UnsupportedSchemaVersion(version) => {
       println(
         "MoonVigil error: advisory database schema_version must be \"1\", got \"\{version}\"",
@@ -71,7 +97,7 @@ fn dispatch(args : Array[String]) -> Unit raise {
 ///|
 fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   if !options_are_valid(rest, [
-      "--db", "--format", "--output", "--policy", "--fail-on",
+      "--db", "--format", "--output", "--policy", "--fail-on", "--baseline", "--baseline-output",
     ]) {
     println("MoonVigil error: invalid scan option or missing option value")
     print_usage()
@@ -86,9 +112,41 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   let output = option_value(rest, "--output")
   let policy_path = option_value(rest, "--policy")
   let fail_on_override = option_value(rest, "--fail-on")
+  let baseline_path = option_value(rest, "--baseline")
+  let baseline_output_path = option_value(rest, "--baseline-output")
+  let baseline_conflicts_with_output = match baseline_path {
+    Some(input_path) => {
+      let report_conflict = match output {
+        Some(report_path) => report_path == input_path
+        None => false
+      }
+      let snapshot_conflict = match baseline_output_path {
+        Some(snapshot_path) => snapshot_path == input_path
+        None => false
+      }
+      report_conflict || snapshot_conflict
+    }
+    None => false
+  }
+  let outputs_conflict = match (output, baseline_output_path) {
+    (Some(report_path), Some(snapshot_path)) => report_path == snapshot_path
+    _ => false
+  }
+  if baseline_conflicts_with_output || outputs_conflict {
+    println("MoonVigil error: baseline and output paths must be distinct")
+    exit_with_status(2)
+  }
   let database = read_database(database_path)
   let dependencies = discover_dependencies(path)
   let base_report = @vigil.scan(dependencies, database)
+  let compared_report = match baseline_path {
+    Some(file) =>
+      @vigil.apply_baseline(
+        base_report,
+        @vigil.parse_baseline(@fs.read_file_to_string(file)),
+      )
+    None => base_report
+  }
   let report = match (policy_path, fail_on_override) {
     (Some(policy_file), threshold_override) => {
       let today = utc_today()
@@ -96,14 +154,19 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
         @fs.read_file_to_string(policy_file),
         today~,
       )
-      @vigil.evaluate_policy(base_report, policy, threshold_override, today~).report
+      @vigil.evaluate_policy(
+        compared_report,
+        policy,
+        threshold_override,
+        today~,
+      ).report
     }
     (None, Some(threshold)) => {
       let today = utc_today()
       let policy = @vigil.empty_policy(fail_on="info")
-      @vigil.evaluate_policy(base_report, policy, Some(threshold), today~).report
+      @vigil.evaluate_policy(compared_report, policy, Some(threshold), today~).report
     }
-    (None, None) => base_report
+    (None, None) => compared_report
   }
   let content = match format_name {
     "terminal" => @vigil.report_terminal(report)
@@ -116,6 +179,14 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
     }
   }
   write_or_print(content, output)
+  match baseline_output_path {
+    Some(file) =>
+      write_or_print(
+        @vigil.baseline_json(@vigil.baseline_from_report(base_report)),
+        Some(file),
+      )
+    None => ()
+  }
   let blocking = match report.policy {
     Some(policy) => policy.blocking_findings > 0
     None => report.findings.length() > 0
@@ -328,7 +399,7 @@ fn two_digits(value : Int) -> String {
 fn print_usage() -> Unit {
   println("MoonVigil — offline MoonBit dependency scanner")
   println(
-    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info]",
+    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--baseline file] [--baseline-output file]",
   )
   println("  moon run cmd/main -- sbom <path> [--output file]")
   println("  moon run cmd/main -- db validate <advisories.json>")

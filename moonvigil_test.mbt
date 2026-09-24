@@ -222,6 +222,60 @@ test "validates baselines built directly by library callers" {
 }
 
 ///|
+test "compares exact baseline keys and serializes every comparison state" {
+  let database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-EXISTING\",\"package_name\":\"example/current\",\"affected\":\"*\",\"severity\":\"high\",\"summary\":\"existing fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-EXISTING\"]},{\"id\":\"MV-NEW\",\"package_name\":\"example/new\",\"affected\":\"*\",\"severity\":\"critical\",\"summary\":\"new fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-NEW\"]},{\"id\":\"MV-UNKNOWN\",\"package_name\":\"example/unknown\",\"affected\":\"*\",\"severity\":\"medium\",\"summary\":\"unknown fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-UNKNOWN\"]}]}",
+  )
+  let report = scan(
+    [
+      Dependency(name="example/current", version="1.0.0", source="one/moon.mod"),
+      Dependency(name="example/new", version="2.0.0", source="two/moon.mod"),
+      Dependency(
+        name="example/unknown",
+        version="main",
+        source="three/moon.mod",
+      ),
+    ],
+    database,
+  )
+  let compared = apply_baseline(
+    report,
+    parse_baseline(
+      "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-EXISTING\",\"package_name\":\"example/current\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-NEW\",\"package_name\":\"example/new\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-REMOVED\",\"package_name\":\"example/removed\",\"version\":\"3.0.0\"}]}",
+    ),
+  )
+  assert_eq(compared.schema_version, "4")
+  assert_true(compared.findings[0].baseline_status is Some(Existing))
+  assert_true(compared.findings[1].baseline_status is Some(New))
+  assert_eq(compared.uncomparable[0].baseline_status, None)
+  let summary = compared.baseline.unwrap()
+  assert_eq(summary.snapshot_entries, 3)
+  assert_eq(summary.new_findings, 1)
+  assert_eq(summary.existing_findings, 1)
+  assert_eq(summary.no_longer_detected.length(), 2)
+  assert_eq(summary.no_longer_detected[0].advisory_id, "MV-NEW")
+  assert_eq(summary.no_longer_detected[1].advisory_id, "MV-REMOVED")
+  let json = report_json(compared)
+  let terminal = report_terminal(compared)
+  let sarif = report_sarif(compared)
+  assert_true(json.contains("\"schema_version\": \"4\""))
+  assert_true(json.contains("\"baseline_status\": \"Existing\""))
+  assert_true(terminal.contains("[existing]"))
+  assert_true(terminal.contains("[new]"))
+  assert_true(terminal.contains("no longer detected: MV-REMOVED"))
+  assert_true(sarif.contains("\"baselineState\": \"unchanged\""))
+  assert_true(sarif.contains("\"baselineState\": \"new\""))
+  assert_true(sarif.contains("\"moonvigilBaseline\""))
+  let evaluated = evaluate_policy(
+    compared,
+    empty_policy(fail_on="high"),
+    None,
+    today="2026-09-25",
+  )
+  assert_true(evaluated.report.findings[0].baseline_status is Some(Existing))
+}
+
+///|
 test "accepts a complete advisory database and an empty database" {
   let complete = parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-VALID\",\"package_name\":\"example/insecure-http\",\"affected\":\">=0.1.0 <0.2.0\",\"severity\":\"high\",\"summary\":\"fixture\",\"fixed_version\":\"0.2.0\",\"references\":[\"https://example.invalid/MV-VALID\"]}]}",
@@ -470,8 +524,8 @@ test "serializes complete affected and uncomparable evidence" {
   assert_true(terminal.contains("affected: >=1.0.0 <2.0.0"))
   assert_true(terminal.contains("fixed: 2.0.0"))
   assert_true(terminal.contains("[uncomparable]"))
-  assert_eq(report.schema_version, "3")
-  assert_true(json.contains("\"schema_version\": \"3\""))
+  assert_eq(report.schema_version, "4")
+  assert_true(json.contains("\"schema_version\": \"4\""))
   assert_true(sarif.contains("installedVersion"))
   assert_true(sarif.contains("matchStatus"))
   assert_true(sarif.contains("uncomparable"))

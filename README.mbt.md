@@ -25,6 +25,8 @@ moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
 moon run cmd/main --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
 moon run cmd/main --target native -- scan fixtures/affected --policy fixtures/policy/exact-suppression.json --format json --output report.json
 moon run cmd/main --target native -- scan fixtures/affected --fail-on critical
+moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
+moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
 ```
 
 ## Linux demonstration
@@ -51,8 +53,8 @@ Each advisory needs at least one HTTP(S) reference with a valid authority. A
 fixed version is empty or a stable three-part version. The db validate command
 reports all semantic issues found in one pass.
 
-The JSON report schema is version 3 and includes dependency scopes and optional
-policy evaluation evidence. A pinned
+The JSON report schema is version 4 and includes dependency scopes, optional
+policy evidence, and optional baseline comparison state. A pinned
 public manifest fixture from moonbitlang/parser is provided under fixtures/real
 to exercise real-world manifest syntax; its source commit and license are
 documented alongside the fixture. This is compatibility evidence, not a claim
@@ -74,10 +76,12 @@ expiry. Suppressed findings remain in terminal, JSON, and SARIF reports.
 Unmatched rules produce a warning but do not suppress anything. See
 [`docs/ci-policy.md`](docs/ci-policy.md) for the schema and workflow details.
 
-The library also provides a strict, portable baseline snapshot format for
-affected direct dependencies. It stores advisory ID, canonical package name,
-and exact version only—never project paths. See
-[`docs/baseline.md`](docs/baseline.md) for the schema and validation behavior.
+Baseline snapshots store advisory ID, canonical package name, and exact
+version only—never project paths. When a snapshot is supplied, findings are
+marked new or existing; keys in the snapshot that are no longer detected are
+reported separately without assuming they were remediated. Use
+`--baseline-output <file>` to explicitly write a current snapshot. See
+[`docs/baseline.md`](docs/baseline.md) for the schema and comparison behavior.
 
 At the time of this check, the [official OSV schema's defined ecosystem list](https://ossf.github.io/osv-schema/)
 does not include MoonBit or Mooncakes. The pinned public fixture therefore
