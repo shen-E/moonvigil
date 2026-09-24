@@ -91,7 +91,7 @@ pub fn parse_moon_pkg(
         } else {
           entry.value.split("/").to_array().last().unwrap_or("").to_owned()
         }
-        imports.push({ package_name: entry.value, alias_name, scope, source, })
+        imports.push({ package_name: entry.value, alias_name, scope, source })
       }
     }
   }
@@ -215,7 +215,7 @@ fn parse_import_blocks(
                   cursor = after_value
                   ""
                 }
-                entries.push({ value, alias_name, })
+                entries.push({ value, alias_name })
               }
               Comma | Other => cursor += 1
               _ => cursor += 1
@@ -237,7 +237,7 @@ fn parse_import_blocks(
               }
             _ => ("runtime", after_block)
           }
-          blocks.push({ entries, scope, })
+          blocks.push({ entries, scope })
           index = next_index
         } else {
           index = opening

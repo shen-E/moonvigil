@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a strict schema-v1 baseline snapshot API with deterministic creation,
+  validation, parsing, and serialization; snapshots omit source paths and
+  uncomparable dependency versions.
 - Added strict advisory database validation with field-level diagnostics.
 - Rejected unsupported database schemas, unsafe range syntax, malformed fixed
   versions, invalid severities, duplicate IDs, and missing HTTP(S) evidence.

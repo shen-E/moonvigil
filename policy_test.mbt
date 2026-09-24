@@ -53,7 +53,7 @@ test "uncomparable versions never block policy gates" {
   let database = parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"affected\":\"*\",\"severity\":\"critical\",\"summary\":\"policy fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-POLICY\"]}]}",
   )
-  let dependency = Dependency(
+  let dependency = Dependency::Dependency(
     name="example/p",
     version="main",
     source="moon.mod",

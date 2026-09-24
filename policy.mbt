@@ -100,7 +100,7 @@ pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
         reason="must be an array",
       )
   }
-  let policy = { schema_version, fail_on, suppressions, }
+  let policy = { schema_version, fail_on, suppressions }
   validate_policy(policy, today~)
   policy
 }
@@ -179,7 +179,7 @@ pub fn validate_policy(policy : ScanPolicy, today~ : String) -> Unit raise {
 ///|
 /// Make an empty policy for callers that only want a command-line severity gate.
 pub fn empty_policy(fail_on~ : String) -> ScanPolicy {
-  { schema_version: "1", fail_on, suppressions: [], }
+  { schema_version: "1", fail_on, suppressions: [] }
 }
 
 ///|
@@ -245,7 +245,7 @@ pub fn evaluate_policy(
     conflicts: report.conflicts,
     policy: Some(policy_summary),
   }
-  { report: evaluated_report, should_fail: blocking_findings > 0, }
+  { report: evaluated_report, should_fail: blocking_findings > 0 }
 }
 
 ///|

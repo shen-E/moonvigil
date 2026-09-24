@@ -16,7 +16,7 @@ pub fn Dependency::Dependency(
   aliases? : Array[String] = [],
   scopes? : Array[DependencyScope] = [],
 ) -> Dependency {
-  { name, version, source, aliases, scopes, }
+  { name, version, source, aliases, scopes }
 }
 
 ///|
@@ -78,7 +78,7 @@ pub fn inventory_from_dependencies(
     }
   }
   normalized.sort_by(dependency_compare)
-  { dependencies: normalized, conflicts: dependency_conflicts(normalized), }
+  { dependencies: normalized, conflicts: dependency_conflicts(normalized) }
 }
 
 ///|
@@ -106,7 +106,7 @@ pub fn dependency_conflicts(
       if versions.length() > 1 {
         versions.sort_by(lexicographic_compare)
         sources.sort_by(lexicographic_compare)
-        conflicts.push({ name: dependency.name, versions, sources, })
+        conflicts.push({ name: dependency.name, versions, sources })
       }
     }
   }
@@ -251,7 +251,7 @@ pub fn parse_manifest(
       for name, value in imports {
         match value {
           String(version) =>
-            result.push({ name, version, source, aliases: [], scopes: [], })
+            result.push({ name, version, source, aliases: [], scopes: [] })
           _ => ()
         }
       }
@@ -272,7 +272,7 @@ pub fn scan(
     for advisory in database.advisories {
       if dependency.name == advisory.package_name {
         let status = match_version(dependency.version, advisory.affected)
-        let finding = { dependency, advisory, status, suppression: None, }
+        let finding = { dependency, advisory, status, suppression: None }
         match status {
           Affected => findings.push(finding)
           Uncomparable => uncomparable.push(finding)

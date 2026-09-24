@@ -122,6 +122,106 @@ test "matches an affected dependency and leaves a fixed version clean" {
 }
 
 ///|
+test "baseline snapshots sort and deduplicate affected dependency keys" {
+  let database = parse_database(
+    "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-B\",\"package_name\":\"example/b\",\"affected\":\"*\",\"severity\":\"high\",\"summary\":\"fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-B\"]},{\"id\":\"MV-A\",\"package_name\":\"example/a\",\"affected\":\"*\",\"severity\":\"low\",\"summary\":\"fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-A\"]}]}",
+  )
+  let report = scan(
+    [
+      Dependency(name="example/b", version="1.0.0", source="z/moon.mod"),
+      Dependency(name="example/a", version="2.0.0", source="a/moon.mod"),
+      Dependency(name="example/a", version="2.0.0", source="b/moon.mod"),
+      Dependency(name="example/b", version="main", source="c/moon.mod"),
+    ],
+    database,
+  )
+  let baseline = baseline_from_report(report)
+  assert_eq(baseline.entries.length(), 2)
+  assert_eq(baseline.entries[0].advisory_id, "MV-A")
+  assert_eq(baseline.entries[0].package_name, "example/a")
+  assert_eq(baseline.entries[1].advisory_id, "MV-B")
+  let serialized = baseline_json(baseline)
+  assert_true(serialized.contains("\"schema_version\": \"1\""))
+  assert_false(serialized.contains("moon.mod"))
+  assert_eq(parse_baseline(serialized), baseline)
+  assert_eq(
+    parse_baseline(@fs.read_file_to_string("fixtures/baseline/initial.json")).entries.length(),
+    1,
+  )
+}
+
+///|
+test "accepts an empty baseline and rejects invalid schema or entry fields" {
+  assert_eq(
+    parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}").entries.length(),
+    0,
+  )
+  assert_eq(
+    parse_baseline(@fs.read_file_to_string("fixtures/baseline/empty.json")).entries.length(),
+    0,
+  )
+  let invalid = [
+    "{\"schema_version\":\"2\",\"entries\":[]}", "{\"schema_version\":\"1\"}", "{\"schema_version\":\"1\",\"entries\":[{}]}",
+    "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":7,\"package_name\":\"example/a\",\"version\":\"1.0.0\"}]}",
+    "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"main\"}]}",
+    "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"1.0.0\"}]}",
+  ]
+  for text in invalid {
+    try parse_baseline(text) catch {
+      BaselineValidationError::UnsupportedBaselineSchemaVersion(_) => ()
+      BaselineValidationError::InvalidBaselineField(field=_, reason=_) => ()
+      BaselineValidationError::InvalidBaselineEntry(index=_, field=_, reason=_) =>
+        ()
+      BaselineValidationError::DuplicateBaselineEntry(index=_, advisory_id=_) =>
+        ()
+      _ => fail("expected a baseline validation error")
+    } noraise {
+      _ => fail("expected invalid baseline to be rejected")
+    }
+  }
+  try
+    parse_baseline(
+      @fs.read_file_to_string("fixtures/baseline/unsupported-version.json"),
+    )
+  catch {
+    BaselineValidationError::UnsupportedBaselineSchemaVersion("2") => ()
+    _ => fail("expected unsupported baseline schema")
+  } noraise {
+    _ => fail("expected invalid baseline schema to be rejected")
+  }
+  try
+    parse_baseline(
+      @fs.read_file_to_string("fixtures/baseline/duplicate-entry.json"),
+    )
+  catch {
+    BaselineValidationError::DuplicateBaselineEntry(index=1, advisory_id=_) =>
+      ()
+    _ => fail("expected duplicate baseline entry")
+  } noraise {
+    _ => fail("expected duplicate baseline entry to be rejected")
+  }
+}
+
+///|
+test "validates baselines built directly by library callers" {
+  let invalid : ScanBaseline = @json.from_json(
+    @json.parse(
+      "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"1.0.0-alpha\"}]}",
+    ),
+  )
+  try validate_baseline(invalid) catch {
+    BaselineValidationError::InvalidBaselineEntry(
+      index=0,
+      field="version",
+      reason=_
+    ) => ()
+    _ => fail("expected direct baseline validation error")
+  } noraise {
+    _ => fail("expected direct baseline validation to reject a pre-release")
+  }
+}
+
+///|
 test "accepts a complete advisory database and an empty database" {
   let complete = parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-VALID\",\"package_name\":\"example/insecure-http\",\"affected\":\">=0.1.0 <0.2.0\",\"severity\":\"high\",\"summary\":\"fixture\",\"fixed_version\":\"0.2.0\",\"references\":[\"https://example.invalid/MV-VALID\"]}]}",

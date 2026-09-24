@@ -180,9 +180,9 @@ fn validate_database_string_field(
   issues : Array[DatabaseIssue],
 ) -> Unit {
   match fields.get(field) {
-    None => issues.push({ index, id, field, reason: "is required", })
+    None => issues.push({ index, id, field, reason: "is required" })
     Some(String(_)) => ()
-    _ => issues.push({ index, id, field, reason: "must be a string", })
+    _ => issues.push({ index, id, field, reason: "must be a string" })
   }
 }
 
@@ -195,7 +195,7 @@ fn validate_database_references_field(
 ) -> Unit {
   match fields.get("references") {
     None =>
-      issues.push({ index, id, field: "references", reason: "is required", })
+      issues.push({ index, id, field: "references", reason: "is required" })
     Some(Array(references)) =>
       if references.any(fn(reference) {
           match reference {

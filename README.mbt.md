@@ -74,6 +74,11 @@ expiry. Suppressed findings remain in terminal, JSON, and SARIF reports.
 Unmatched rules produce a warning but do not suppress anything. See
 [`docs/ci-policy.md`](docs/ci-policy.md) for the schema and workflow details.
 
+The library also provides a strict, portable baseline snapshot format for
+affected direct dependencies. It stores advisory ID, canonical package name,
+and exact version only—never project paths. See
+[`docs/baseline.md`](docs/baseline.md) for the schema and validation behavior.
+
 At the time of this check, the [official OSV schema's defined ecosystem list](https://ossf.github.io/osv-schema/)
 does not include MoonBit or Mooncakes. The pinned public fixture therefore
 verifies real manifest parsing and inventory only; advisories from other
