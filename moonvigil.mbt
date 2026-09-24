@@ -117,7 +117,11 @@ pub struct ScanReport {
 
 ///|
 pub fn parse_database(text : String) -> AdvisoryDatabase raise {
-  @json.from_json(@json.parse(text))
+  let json = @json.parse(text)
+  validate_database_shape(json)
+  let database : AdvisoryDatabase = @json.from_json(json)
+  validate_database(database)
+  database
 }
 
 ///|
@@ -144,7 +148,8 @@ pub fn parse_manifest(
 pub fn scan(
   dependencies : Array[Dependency],
   database : AdvisoryDatabase,
-) -> ScanReport {
+) -> ScanReport raise {
+  validate_database(database)
   let findings : Array[Finding] = []
   let uncomparable : Array[Finding] = []
   for dependency in dependencies {

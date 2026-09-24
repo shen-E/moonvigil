@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "FIXTURE-REFERENCE",
+      "package_name": "fixture/package",
+      "affected": "1.0.0",
+      "severity": "low",
+      "summary": "Fixture without public evidence.",
+      "fixed_version": "",
+      "references": []
+    }
+  ]
+}

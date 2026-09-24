@@ -1,13 +1,20 @@
 # One-minute demonstration script
 
-1. Start in an Ubuntu 24.04 WSL shell and run `./demo/wsl/run-demo.sh`.
-2. Explain that the script builds MoonVigil and scans only local JSON manifests
-   with a local advisory database; it neither contacts a vulnerability service
-   nor executes the target project.
-3. Point out the terminal report: two affected dependencies include their
-   range, fixed version, source location, and reference; the branch dependency
-   is visible as `uncomparable` instead of being misclassified as safe.
-4. Open the generated JSON report to show structured evidence, then the SARIF
-   report to show CI and code-scanning integration data.
-5. Open `bom.json` to show the CycloneDX-style inventory and conclude that the
-   same scan is reproducible in CI or a Linux build environment.
+Use a standard Ubuntu terminal at a readable font size. Record only relative
+paths and real command output; prepare the MoonBit toolchain before recording.
+
+1. **00–08 seconds — scope.** Start in an Ubuntu 24.04 WSL shell. Explain that
+   MoonVigil reads local MoonBit JSON manifests against a local advisory file;
+   it does not contact a vulnerability service or execute the target project.
+2. **08–18 seconds — quality gate.** Run the db validate command against the
+   demo advisory file, then start the WSL demonstration script. Mention that
+   invalid advisory data is rejected before scanning.
+3. **18–34 seconds — terminal evidence.** Point out the two affected
+   dependencies: severity, affected range, fixed version, manifest source, and
+   reference. Show that the branch dependency is uncomparable, not safe.
+4. **34–48 seconds — machine-readable evidence.** Open the generated JSON,
+   then SARIF report. Explain that both retain the same advisory and dependency
+   evidence for CI.
+5. **48–60 seconds — inventory and boundary.** Open the SBOM, state that the
+   inventory is reproducible, then close with the offline boundary: no network
+   advisory lookup, lock-file inference, or source-code SAST.

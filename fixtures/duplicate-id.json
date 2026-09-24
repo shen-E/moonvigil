@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "FIXTURE-DUPLICATE",
+      "package_name": "fixture/one",
+      "affected": "1.0.0",
+      "severity": "low",
+      "summary": "First duplicate fixture.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/FIXTURE-DUPLICATE-1"]
+    },
+    {
+      "id": "FIXTURE-DUPLICATE",
+      "package_name": "fixture/two",
+      "affected": "1.0.0",
+      "severity": "low",
+      "summary": "Second duplicate fixture.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/FIXTURE-DUPLICATE-2"]
+    }
+  ]
+}

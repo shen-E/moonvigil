@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "FIXTURE-SEVERITY",
+      "package_name": "fixture/package",
+      "affected": "1.0.0",
+      "severity": "urgent",
+      "summary": "Fixture with an unsupported severity.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/FIXTURE-SEVERITY"]
+    }
+  ]
+}

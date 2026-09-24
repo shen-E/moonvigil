@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "MV-TYPES",
+      "package_name": "example/package",
+      "affected": "1.0.0",
+      "severity": 7,
+      "summary": false,
+      "fixed_version": "",
+      "references": "https://example.invalid/advisory"
+    }
+  ]
+}

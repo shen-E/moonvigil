@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "FIXTURE-RANGE",
+      "package_name": "fixture/package",
+      "affected": ">=1.0",
+      "severity": "low",
+      "summary": "Fixture with an unsupported range.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/FIXTURE-RANGE"]
+    }
+  ]
+}

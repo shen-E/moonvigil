@@ -1,6 +1,35 @@
 ///|
 fn main {
   dispatch(@env.args()) catch {
+    @vigil.DatabaseValidationError::UnsupportedSchemaVersion(version) => {
+      println(
+        "MoonVigil error: advisory database schema_version must be \"1\", got \"\{version}\"",
+      )
+      exit_with_status(2)
+    }
+    @vigil.DatabaseValidationError::InvalidDatabaseField(field~, reason~) => {
+      println("MoonVigil error: advisory database field \{field}: \{reason}")
+      exit_with_status(2)
+    }
+    @vigil.DatabaseValidationError::InvalidAdvisory(
+      index~,
+      id~,
+      field~,
+      reason~
+    ) => {
+      println(
+        "MoonVigil error: advisory #\{index} (\{id}) field \{field}: \{reason}",
+      )
+      exit_with_status(2)
+    }
+    @vigil.DatabaseValidationError::MultipleInvalidAdvisories(issues) => {
+      for issue in issues {
+        println(
+          "MoonVigil error: advisory #\{issue.index} (\{issue.id}) field \{issue.field}: \{issue.reason}",
+        )
+      }
+      exit_with_status(2)
+    }
     error => {
       println("MoonVigil error: \{error}")
       exit_with_status(2)

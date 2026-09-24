@@ -29,6 +29,16 @@ pub fn match_version(version : String, affected : String) -> FindingStatus {
 }
 
 ///|
+fn is_supported_affected_range(affected : String) -> Bool {
+  parse_ranges(affected) is Some(_)
+}
+
+///|
+fn is_stable_version(version : String) -> Bool {
+  parse_version(version) is Some(_)
+}
+
+///|
 fn parse_ranges(text : String) -> Array[Array[VersionComparator]]? {
   let ranges : Array[Array[VersionComparator]] = []
   for alternative in text.split("||") {
@@ -89,27 +99,51 @@ fn parse_version(version : String) -> Array[Int]? {
   }
   let values : Array[Int] = []
   for piece in pieces {
-    let component = piece.to_owned()
-    if !is_numeric_component(component) {
-      return None
+    match parse_numeric_component(piece.to_owned()) {
+      Some(value) => values.push(value)
+      None => return None
     }
-    let parsed : Int = @strconv.from_str(component) catch { _ => return None }
-    values.push(parsed)
   }
   Some(values)
 }
 
 ///|
-fn is_numeric_component(component : String) -> Bool {
-  if component == "" || (component.length() > 1 && component[0] == '0') {
-    return false
+fn parse_numeric_component(component : String) -> Int? {
+  if component == "" ||
+    component.length() > 10 ||
+    (component.length() > 1 && component[0] == '0') {
+    return None
   }
+  let mut value = 0
   for char in component {
-    if char < '0' || char > '9' {
-      return false
+    match digit_value(char) {
+      Some(digit) => {
+        if value > 214748364 || (value == 214748364 && digit > 7) {
+          return None
+        }
+        value = value * 10 + digit
+      }
+      None => return None
     }
   }
-  true
+  Some(value)
+}
+
+///|
+fn digit_value(char : Char) -> Int? {
+  match char {
+    '0' => Some(0)
+    '1' => Some(1)
+    '2' => Some(2)
+    '3' => Some(3)
+    '4' => Some(4)
+    '5' => Some(5)
+    '6' => Some(6)
+    '7' => Some(7)
+    '8' => Some(8)
+    '9' => Some(9)
+    _ => None
+  }
 }
 
 ///|

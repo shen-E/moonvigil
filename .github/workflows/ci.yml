@@ -51,6 +51,18 @@ jobs:
           invalid_format_exit=$?
           moon run cmd/main --target native -- db validate fixtures/invalid-database.json
           invalid_database_exit=$?
+          moon run cmd/main --target native -- db validate fixtures/invalid-severity.json
+          invalid_severity_exit=$?
+          moon run cmd/main --target native -- db validate fixtures/invalid-reference.json
+          invalid_reference_exit=$?
+          moon run cmd/main --target native -- db validate fixtures/empty-database.json
+          empty_database_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db fixtures/invalid-severity.json
+          invalid_scan_database_exit=$?
+          for database in fixtures/invalid-schema.json fixtures/duplicate-id.json fixtures/invalid-range.json fixtures/invalid-fixed-version.json; do
+            moon run cmd/main --target native -- db validate "$database"
+            test "$?" -eq 2
+          done
           moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/demo.json"
           demo_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --output "$output_dir"
@@ -62,6 +74,10 @@ jobs:
           test "$missing_path_exit" -eq 2
           test "$invalid_format_exit" -eq 2
           test "$invalid_database_exit" -eq 2
+          test "$invalid_severity_exit" -eq 2
+          test "$invalid_reference_exit" -eq 2
+          test "$empty_database_exit" -eq 0
+          test "$invalid_scan_database_exit" -eq 2
           test "$demo_exit" -eq 1
           test "$output_error_exit" -eq 2
           test -s "$output_dir/affected.json"

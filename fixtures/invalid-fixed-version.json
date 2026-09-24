@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "FIXTURE-FIXED",
+      "package_name": "fixture/package",
+      "affected": "1.0.0",
+      "severity": "low",
+      "summary": "Fixture with an unsupported fixed version.",
+      "fixed_version": "1.0",
+      "references": ["https://example.invalid/FIXTURE-FIXED"]
+    }
+  ]
+}

@@ -5,10 +5,15 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 output_dir=${1:-"$(mktemp -d "${TMPDIR:-/tmp}/moonvigil-demo.XXXXXX")"}
 mkdir -p "$output_dir"
 
+export PATH="$HOME/.moon/bin:$PATH"
 if ! command -v moon >/dev/null 2>&1; then
-  echo "MoonBit is not installed; installing the build toolchain."
-  curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+  echo "MoonBit is not installed; preparing the build toolchain."
+  installer=$(mktemp "${TMPDIR:-/tmp}/moonbit-install.XXXXXX.sh")
+  trap 'rm -f "$installer"' EXIT
+  curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o "$installer"
+  bash "$installer"
   export PATH="$HOME/.moon/bin:$PATH"
+  moon update
 fi
 
 cd "$project_root"
@@ -17,6 +22,7 @@ moon fmt --check
 moon check --target native --warn-list +73
 moon test --target native
 moon build --target native
+moon run cmd/main --target native -- db validate demo/advisories.json
 
 set +e
 moon run cmd/main --target native -- scan demo/project --db demo/advisories.json
@@ -39,4 +45,4 @@ if [ "${scan_exit:-0}" -ne 1 ]; then
 fi
 moon run cmd/main --target native -- sbom demo/project --output "$output_dir/bom.json"
 
-echo "Demonstration artifacts: $output_dir"
+echo "Demonstration artifacts are ready in the selected output directory."
