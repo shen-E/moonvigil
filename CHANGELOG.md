@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added schema-v2 baseline snapshots with validated advisory range, severity,
+  and fixed-version evidence while retaining schema-v1 read compatibility.
 - Added a strict schema-v1 baseline snapshot API with deterministic creation,
   validation, parsing, and serialization; snapshots omit source paths and
   uncomparable dependency versions.

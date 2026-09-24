@@ -140,14 +140,27 @@ test "baseline snapshots sort and deduplicate affected dependency keys" {
   assert_eq(baseline.entries[0].advisory_id, "MV-A")
   assert_eq(baseline.entries[0].package_name, "example/a")
   assert_eq(baseline.entries[1].advisory_id, "MV-B")
+  assert_eq(baseline.schema_version, "2")
+  assert_eq(baseline.entries[0].affected, Some("*"))
+  assert_eq(baseline.entries[0].severity, Some("low"))
+  assert_eq(baseline.entries[0].fixed_version, Some(""))
   let serialized = baseline_json(baseline)
-  assert_true(serialized.contains("\"schema_version\": \"1\""))
+  assert_true(serialized.contains("\"schema_version\": \"2\""))
   assert_false(serialized.contains("moon.mod"))
   assert_eq(parse_baseline(serialized), baseline)
   assert_eq(
     parse_baseline(@fs.read_file_to_string("fixtures/baseline/initial.json")).entries.length(),
     1,
   )
+  assert_eq(
+    parse_baseline(@fs.read_file_to_string("fixtures/baseline/valid-v2.json")).schema_version,
+    "2",
+  )
+  let legacy = parse_baseline(
+    @fs.read_file_to_string("fixtures/baseline/initial.json"),
+  )
+  assert_eq(legacy.entries[0].affected, None)
+  assert_false(baseline_json(legacy).contains("\"affected\""))
 }
 
 ///|
@@ -161,7 +174,7 @@ test "accepts an empty baseline and rejects invalid schema or entry fields" {
     0,
   )
   let invalid = [
-    "{\"schema_version\":\"2\",\"entries\":[]}", "{\"schema_version\":\"1\"}", "{\"schema_version\":\"1\",\"entries\":[{}]}",
+    "{\"schema_version\":\"3\",\"entries\":[]}", "{\"schema_version\":\"1\"}", "{\"schema_version\":\"1\",\"entries\":[{}]}",
     "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":7,\"package_name\":\"example/a\",\"version\":\"1.0.0\"}]}",
     "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"main\"}]}",
     "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-1\",\"package_name\":\"example/a\",\"version\":\"1.0.0\"}]}",
@@ -184,7 +197,7 @@ test "accepts an empty baseline and rejects invalid schema or entry fields" {
       @fs.read_file_to_string("fixtures/baseline/unsupported-version.json"),
     )
   catch {
-    BaselineValidationError::UnsupportedBaselineSchemaVersion("2") => ()
+    BaselineValidationError::UnsupportedBaselineSchemaVersion("3") => ()
     _ => fail("expected unsupported baseline schema")
   } noraise {
     _ => fail("expected invalid baseline schema to be rejected")
@@ -199,6 +212,23 @@ test "accepts an empty baseline and rejects invalid schema or entry fields" {
     _ => fail("expected duplicate baseline entry")
   } noraise {
     _ => fail("expected duplicate baseline entry to be rejected")
+  }
+}
+
+///|
+test "rejects malformed v2 baseline risk evidence with field diagnostics" {
+  let invalid = [
+    "fixtures/baseline/invalid-v2-missing.json", "fixtures/baseline/invalid-v2-range.json",
+    "fixtures/baseline/invalid-v2-severity.json", "fixtures/baseline/invalid-v2-fixed.json",
+  ]
+  for path in invalid {
+    try parse_baseline(@fs.read_file_to_string(path)) catch {
+      BaselineValidationError::InvalidBaselineEntry(index=0, field=_, reason=_) =>
+        ()
+      _ => fail("expected a schema-v2 field validation error")
+    } noraise {
+      _ => fail("expected malformed schema-v2 evidence to be rejected")
+    }
   }
 }
 

@@ -4,6 +4,9 @@ pub struct BaselineEntry {
   advisory_id : String
   package_name : String
   version : String
+  affected : String?
+  severity : String?
+  fixed_version : String?
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|
@@ -38,7 +41,7 @@ pub(all) suberror BaselineValidationError {
 } derive(Debug, Eq)
 
 ///|
-/// Parse and strictly validate a schema-v1 baseline snapshot.
+/// Parse and strictly validate a schema-v1 or schema-v2 baseline snapshot.
 pub fn parse_baseline(text : String) -> ScanBaseline raise {
   let json = @json.parse(text)
   validate_baseline_shape(json)
@@ -50,7 +53,7 @@ pub fn parse_baseline(text : String) -> ScanBaseline raise {
 ///|
 /// Validate a baseline created by a caller or deserializer.
 pub fn validate_baseline(baseline : ScanBaseline) -> Unit raise {
-  if baseline.schema_version != "1" {
+  if baseline.schema_version != "1" && baseline.schema_version != "2" {
     raise BaselineValidationError::UnsupportedBaselineSchemaVersion(
       baseline.schema_version,
     )
@@ -77,6 +80,64 @@ pub fn validate_baseline(baseline : ScanBaseline) -> Unit raise {
         reason="must be a stable three-part version",
       )
     }
+    if baseline.schema_version == "1" {
+      if entry.affected is Some(_) ||
+        entry.severity is Some(_) ||
+        entry.fixed_version is Some(_) {
+        raise BaselineValidationError::InvalidBaselineEntry(
+          index~,
+          field="risk_evidence",
+          reason="is not supported by schema version 1",
+        )
+      }
+    } else {
+      match entry.affected {
+        Some(affected) if is_supported_affected_range(affected) => ()
+        Some(_) =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="affected",
+            reason="must use the supported stable three-part range syntax",
+          )
+        None =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="affected",
+            reason="is required by schema version 2",
+          )
+      }
+      match entry.severity {
+        Some(severity) if is_policy_severity(severity) => ()
+        Some(_) =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="severity",
+            reason="must be one of critical, high, medium, low, or info",
+          )
+        None =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="severity",
+            reason="is required by schema version 2",
+          )
+      }
+      match entry.fixed_version {
+        Some(fixed_version) if fixed_version == "" ||
+          is_stable_version(fixed_version) => ()
+        Some(_) =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="fixed_version",
+            reason="must be empty or a stable three-part version",
+          )
+        None =>
+          raise BaselineValidationError::InvalidBaselineEntry(
+            index~,
+            field="fixed_version",
+            reason="is required by schema version 2",
+          )
+      }
+    }
     for previous_index in 0..<index {
       if baseline_entry_equal(entry, baseline.entries[previous_index]) {
         raise BaselineValidationError::DuplicateBaselineEntry(
@@ -99,6 +160,9 @@ pub fn baseline_from_report(report : ScanReport) -> ScanBaseline {
         advisory_id: finding.advisory.id,
         package_name: finding.dependency.name,
         version: finding.dependency.version,
+        affected: Some(finding.advisory.affected),
+        severity: Some(finding.advisory.severity),
+        fixed_version: Some(finding.advisory.fixed_version),
       }
       if !entries.any(fn(existing) { baseline_entry_equal(existing, entry) }) {
         entries.push(entry)
@@ -106,14 +170,30 @@ pub fn baseline_from_report(report : ScanReport) -> ScanBaseline {
     }
   }
   entries.sort_by(baseline_entry_compare)
-  { schema_version: "1", entries }
+  { schema_version: "2", entries }
 }
 
 ///|
 /// Serialize a validated snapshot as stable, indented JSON.
 pub fn baseline_json(baseline : ScanBaseline) -> String raise {
   validate_baseline(baseline)
-  @json.to_json(baseline).stringify(indent=2)
+  let entries = baseline.entries.map(fn(entry) {
+    let fields : Map[String, Json] = {
+      "advisory_id": Json::string(entry.advisory_id),
+      "package_name": Json::string(entry.package_name),
+      "version": Json::string(entry.version),
+    }
+    if baseline.schema_version == "2" {
+      fields["affected"] = Json::string(entry.affected.unwrap())
+      fields["severity"] = Json::string(entry.severity.unwrap())
+      fields["fixed_version"] = Json::string(entry.fixed_version.unwrap())
+    }
+    Json::object(fields)
+  })
+  Json::object({
+    "schema_version": Json::string(baseline.schema_version),
+    "entries": Json::array(entries),
+  }).stringify(indent=2)
 }
 
 ///|
@@ -198,8 +278,20 @@ fn validate_baseline_shape(json : Json) -> Unit raise {
         Some(Array(entries)) =>
           for index, entry in entries {
             match entry {
-              Object(fields) =>
-                for field in ["advisory_id", "package_name", "version"] {
+              Object(fields) => {
+                let schema_version = match root.get("schema_version") {
+                  Some(String(value)) => value
+                  _ => ""
+                }
+                let required_fields = if schema_version == "2" {
+                  [
+                    "advisory_id", "package_name", "version", "affected", "severity",
+                    "fixed_version",
+                  ]
+                } else {
+                  ["advisory_id", "package_name", "version"]
+                }
+                for field in required_fields {
                   match fields.get(field) {
                     Some(String(_)) => ()
                     None =>
@@ -216,6 +308,7 @@ fn validate_baseline_shape(json : Json) -> Unit raise {
                       )
                   }
                 }
+              }
               _ =>
                 raise BaselineValidationError::InvalidBaselineEntry(
                   index~,

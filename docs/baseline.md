@@ -1,28 +1,34 @@
 # Baseline snapshot format
 
-MoonVigil's library can create and validate schema-v1 baseline snapshots. A
-snapshot records only the exact identity of an affected direct dependency:
-advisory ID, canonical package name, and stable three-part version. It contains
-no manifest path, machine path, alias, project source, or dependency contents.
+MoonVigil reads schema-v1 and schema-v2 baseline snapshots. New snapshots use
+schema v2 and record the exact identity of an affected direct dependency plus
+the advisory's affected range, severity, and fixed version. Schema v1 remains
+valid for compatibility but does not carry risk evidence. Neither version
+contains manifest paths, machine paths, aliases, project sources, or dependency
+contents.
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "entries": [
     {
       "advisory_id": "MV-BASELINE-0001",
       "package_name": "example/fixture-library",
-      "version": "1.2.3"
+      "version": "1.2.3",
+      "affected": ">=1.0.0 <2.0.0",
+      "severity": "high",
+      "fixed_version": "2.0.0"
     }
   ]
 }
 ```
 
-The empty `entries` array is valid. Entries are sorted deterministically by
-advisory ID, package name, and version; exact duplicates are removed when a
-snapshot is created from a report and rejected in an input snapshot. Invalid
-versions are rejected rather than normalized. Findings whose version cannot
-be compared are not included.
+The empty `entries` array is valid. Both versions require a stable three-part
+installed version; v2 additionally validates the range, severity, and fixed
+version using the same rules as the advisory database. Entries are sorted
+deterministically by advisory ID, package name, and version; exact duplicates
+are removed when a snapshot is created from a report and rejected in an input
+snapshot. Findings whose version cannot be compared are not included.
 
 Library callers can use `baseline_from_report`, `parse_baseline`,
 `validate_baseline`, `baseline_json`, and `apply_baseline`. The CLI accepts

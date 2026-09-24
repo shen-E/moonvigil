@@ -1,0 +1,1 @@
+{"schema_version":"2","entries":[{"advisory_id":"MV-1","package_name":"example/a","version":"1.0.0","affected":"*","severity":"high","fixed_version":"2.0"}]}

@@ -83,10 +83,12 @@ expiry. Suppressed findings remain in terminal, JSON, and SARIF reports.
 Unmatched rules produce a warning but do not suppress anything. See
 [`docs/ci-policy.md`](docs/ci-policy.md) for the schema and workflow details.
 
-Baseline snapshots store advisory ID, canonical package name, and exact
-version only—never project paths. When a snapshot is supplied, findings are
-marked new or existing; keys in the snapshot that are no longer detected are
-reported separately without assuming they were remediated. Use
+New baseline snapshots store advisory ID, canonical package name, exact
+version, and the advisory's affected range, severity, and fixed version—never
+project paths. Schema-v1 snapshots remain readable as legacy snapshots. When a
+snapshot is supplied, findings are marked new or existing; keys in the
+snapshot that are no longer detected are reported separately without assuming
+they were remediated. Use
 `--baseline-output <file>` to explicitly write a current snapshot. See
 [`docs/baseline.md`](docs/baseline.md) for the schema and comparison behavior.
 

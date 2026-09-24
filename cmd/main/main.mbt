@@ -3,7 +3,7 @@ fn main {
   dispatch(@env.args()) catch {
     @vigil.BaselineValidationError::UnsupportedBaselineSchemaVersion(version) => {
       println(
-        "MoonVigil error: baseline schema_version must be \"1\", got \"\{version}\"",
+        "MoonVigil error: baseline schema_version must be \"1\" or \"2\", got \"\{version}\"",
       )
       exit_with_status(2)
     }
