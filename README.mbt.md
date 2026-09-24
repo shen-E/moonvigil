@@ -23,6 +23,8 @@ moon run cmd/main --target native -- scan fixtures/affected --db advisories.json
 moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format sarif --output report.sarif
 moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
 moon run cmd/main --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
+moon run cmd/main --target native -- scan fixtures/affected --policy fixtures/policy/exact-suppression.json --format json --output report.json
+moon run cmd/main --target native -- scan fixtures/affected --fail-on critical
 ```
 
 ## Linux demonstration
@@ -49,11 +51,28 @@ Each advisory needs at least one HTTP(S) reference with a valid authority. A
 fixed version is empty or a stable three-part version. The db validate command
 reports all semantic issues found in one pass.
 
-The JSON report schema is version 2 and includes dependency scopes. A pinned
+The JSON report schema is version 3 and includes dependency scopes and optional
+policy evaluation evidence. A pinned
 public manifest fixture from moonbitlang/parser is provided under fixtures/real
 to exercise real-world manifest syntax; its source commit and license are
 documented alongside the fixture. This is compatibility evidence, not a claim
 that the project has a known vulnerability.
+
+## CI policy
+
+Policy files are loaded only when explicitly passed with `--policy`; MoonVigil
+does not auto-discover a policy. `--fail-on` can override the configured
+severity threshold. Without either option, existing behavior is unchanged:
+any affected dependency exits 1, no affected dependencies exits 0, and invalid
+arguments or inputs exit 2. With a policy, only unsuppressed findings at or
+above the threshold block; uncomparable versions never block.
+
+Suppression rules require an advisory ID, canonical package name, exact stable
+version, non-empty reason, and an ISO expiry date. A rule applies only to that
+exact triple, stays active through its expiry date, and is rejected after
+expiry. Suppressed findings remain in terminal, JSON, and SARIF reports.
+Unmatched rules produce a warning but do not suppress anything. See
+[`docs/ci-policy.md`](docs/ci-policy.md) for the schema and workflow details.
 
 At the time of this check, the [official OSV schema's defined ecosystem list](https://ossf.github.io/osv-schema/)
 does not include MoonBit or Mooncakes. The pinned public fixture therefore
@@ -78,5 +97,6 @@ just build
 ```
 
 The native CLI uses a tiny C bridge solely to return standard process exit
-codes: `0` when no affected dependency is found, `1` when findings exist, and
-`2` for invalid command arguments, paths, databases, or output files.
+codes: `0` when no finding meets the configured gate, `1` when one or more
+unsuppressed findings meet it, and `2` for invalid command arguments, paths,
+databases, policies, or output files.

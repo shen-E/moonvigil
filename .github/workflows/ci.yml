@@ -70,6 +70,30 @@ jobs:
           output_error_exit=$?
           moon run cmd/main --target native -- scan fixtures/modern-preferred --db fixtures/empty-database.json --format json --output "$output_dir/modern.json"
           modern_manifest_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format json --output "$output_dir/suppressed.json"
+          exact_suppression_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format sarif --output "$output_dir/suppressed.sarif"
+          sarif_suppression_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format terminal > "$output_dir/suppressed.txt"
+          terminal_suppression_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/high-gate.json
+          high_gate_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on critical
+          critical_override_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on high
+          high_override_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/unmatched-suppression.json --format terminal > "$output_dir/unmatched.txt"
+          unmatched_suppression_exit=$?
+          moon run cmd/main --target native -- scan fixtures/unknown-version --db advisories.json --fail-on critical --format json --output "$output_dir/uncomparable-policy.json"
+          uncomparable_gate_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/expired-suppression.json
+          expired_policy_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/malformed.json
+          malformed_policy_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on urgent
+          invalid_threshold_exit=$?
+          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy
+          missing_policy_value_exit=$?
           set -e
           test "$affected_exit" -eq 1
           test "$unknown_exit" -eq 0
@@ -84,6 +108,18 @@ jobs:
           test "$demo_exit" -eq 1
           test "$output_error_exit" -eq 2
           test "$modern_manifest_exit" -eq 0
+          test "$exact_suppression_exit" -eq 0
+          test "$sarif_suppression_exit" -eq 0
+          test "$terminal_suppression_exit" -eq 0
+          test "$high_gate_exit" -eq 1
+          test "$critical_override_exit" -eq 0
+          test "$high_override_exit" -eq 1
+          test "$unmatched_suppression_exit" -eq 1
+          test "$uncomparable_gate_exit" -eq 0
+          test "$expired_policy_exit" -eq 2
+          test "$malformed_policy_exit" -eq 2
+          test "$invalid_threshold_exit" -eq 2
+          test "$missing_policy_value_exit" -eq 2
           test -s "$output_dir/affected.json"
           test -s "$output_dir/unknown.sarif"
           test -s "$output_dir/demo.json"
@@ -93,5 +129,17 @@ jobs:
           grep -q '"source": "moon.mod"' "$output_dir/modern.json"
           grep -q '"aliases": \[' "$output_dir/modern.json"
           grep -q '"test"' "$output_dir/modern.json"
+          test -s "$output_dir/suppressed.json"
+          test -s "$output_dir/suppressed.sarif"
+          grep -q '"schema_version": "3"' "$output_dir/suppressed.json"
+          grep -q '"suppressed_findings": 1' "$output_dir/suppressed.json"
+          grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.json"
+          grep -q '\[suppressed\]' "$output_dir/suppressed.txt"
+          grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.txt"
+          grep -q '"kind": "external"' "$output_dir/suppressed.sarif"
+          grep -q '"status": "accepted"' "$output_dir/suppressed.sarif"
+          grep -q '"justification": "Temporary compatibility exception for the policy fixture."' "$output_dir/suppressed.sarif"
+          grep -q 'Warning: suppression did not match' "$output_dir/unmatched.txt"
+          grep -q '"status": "Uncomparable"' "$output_dir/uncomparable-policy.json"
           moon run cmd/main --target native -- sbom fixtures/affected --output "$output_dir/components.json"
           test -s "$output_dir/components.json"

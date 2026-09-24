@@ -217,6 +217,7 @@ pub struct Finding {
   dependency : Dependency
   advisory : Advisory
   status : FindingStatus
+  suppression : PolicySuppression?
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -226,6 +227,7 @@ pub struct ScanReport {
   findings : Array[Finding]
   uncomparable : Array[Finding]
   conflicts : Array[DependencyConflict]
+  policy : PolicySummary?
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -270,7 +272,7 @@ pub fn scan(
     for advisory in database.advisories {
       if dependency.name == advisory.package_name {
         let status = match_version(dependency.version, advisory.affected)
-        let finding = { dependency, advisory, status, }
+        let finding = { dependency, advisory, status, suppression: None, }
         match status {
           Affected => findings.push(finding)
           Uncomparable => uncomparable.push(finding)
@@ -280,11 +282,12 @@ pub fn scan(
     }
   }
   {
-    schema_version: "2",
+    schema_version: "3",
     dependencies,
     findings,
     uncomparable,
     conflicts: dependency_conflicts(dependencies),
+    policy: None,
   }
 }
 
@@ -309,6 +312,19 @@ pub fn report_terminal(report : ScanReport) -> String {
     lines.push(
       "dependency conflict: \{conflict.name} versions \{versions} (sources: \{sources})",
     )
+  }
+  match report.policy {
+    Some(policy) => {
+      lines.push(
+        "Policy: fail on \{policy.fail_on}; \{policy.blocking_findings} blocking, \{policy.suppressed_findings} suppressed",
+      )
+      for suppression in policy.unmatched_suppressions {
+        lines.push(
+          "Warning: suppression did not match \{suppression.advisory_id} \{suppression.package_name}@\{suppression.version} (expires \{suppression.expires_on})",
+        )
+      }
+    }
+    None => ()
   }
   for finding in report.findings {
     lines.push(terminal_finding(finding, "affected"))
@@ -336,6 +352,10 @@ pub fn report_sarif(report : ScanReport) -> String {
     "dependencyConflicts": Json::array(
       report.conflicts.map(dependency_conflict_json),
     ),
+  }
+  match report.policy {
+    Some(policy) => run_properties["policy"] = policy_summary_json(policy)
+    None => ()
   }
   Json::object({
     "version": Json::string("2.1.0"),
@@ -365,7 +385,23 @@ fn dependency_conflict_json(conflict : DependencyConflict) -> Json {
 }
 
 ///|
+fn policy_summary_json(policy : PolicySummary) -> Json {
+  Json::object({
+    "failOn": Json::string(policy.fail_on),
+    "blockingFindings": Json::number(policy.blocking_findings.to_double()),
+    "suppressedFindings": Json::number(policy.suppressed_findings.to_double()),
+    "unmatchedSuppressions": Json::array(
+      policy.unmatched_suppressions.map(@json.to_json),
+    ),
+  })
+}
+
+///|
 fn terminal_finding(finding : Finding, status : String) -> String {
+  let display_status = match finding.suppression {
+    Some(_) => "suppressed"
+    None => status
+  }
   let fixed_version = if finding.advisory.fixed_version == "" {
     "not available"
   } else {
@@ -377,7 +413,7 @@ fn terminal_finding(finding : Finding, status : String) -> String {
     finding.advisory.references.join(", ")
   }
   (
-    $|[\{status}] [\{finding.advisory.severity}] \{finding.advisory.id}
+    $|[\{display_status}] [\{finding.advisory.severity}] \{finding.advisory.id}
     $|  package: \{finding.dependency.name}
     $|  installed: \{finding.dependency.version}
     $|  affected: \{finding.advisory.affected}
@@ -387,7 +423,17 @@ fn terminal_finding(finding : Finding, status : String) -> String {
     $|  scopes: \{dependency_scopes_text(finding.dependency.scopes)}
     $|  summary: \{finding.advisory.summary}
     $|  references: \{references}
+    $|\{suppression_text(finding.suppression)}
   )
+}
+
+///|
+fn suppression_text(suppression : PolicySuppression?) -> String {
+  match suppression {
+    Some(value) =>
+      "  suppression: \{value.reason} (expires \{value.expires_on})"
+    None => ""
+  }
 }
 
 ///|
@@ -426,7 +472,7 @@ fn sarif_result(finding : Finding) -> Json {
     "references": Json::array(finding.advisory.references.map(Json::string)),
     "matchStatus": Json::string(match_status_name(finding.status)),
   }
-  Json::object({
+  let result : Map[String, Json] = {
     "ruleId": Json::string(finding.advisory.id),
     "level": Json::string(level),
     "message": Json::object({ "text": Json::string(message) }),
@@ -439,8 +485,23 @@ fn sarif_result(finding : Finding) -> Json {
         }),
       }),
     ]),
-    "properties": Json::object(properties),
-  })
+  }
+  match finding.suppression {
+    Some(suppression) => {
+      properties["suppressionReason"] = Json::string(suppression.reason)
+      properties["suppressionExpiresOn"] = Json::string(suppression.expires_on)
+      result["suppressions"] = Json::array([
+        Json::object({
+          "kind": Json::string("external"),
+          "status": Json::string("accepted"),
+          "justification": Json::string(suppression.reason),
+        }),
+      ])
+    }
+    None => ()
+  }
+  result["properties"] = Json::object(properties)
+  Json::object(result)
 }
 
 ///|

@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "fail_on": "high",
+  "suppressions": [
+    {
+      "advisory_id": "MOONVIGIL-2026-0001",
+      "package_name": "example/insecure-http",
+      "version": "0.1.5",
+      "reason": "Expired fixture to verify the configuration error path.",
+      "expires_on": "2000-01-01"
+    }
+  ]
+}

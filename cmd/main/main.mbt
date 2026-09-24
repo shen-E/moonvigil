@@ -34,6 +34,20 @@ fn main {
       println("MoonVigil error: \{source}:\{line}: \{reason}")
       exit_with_status(2)
     }
+    @vigil.PolicyValidationError::InvalidPolicyField(field~, reason~) => {
+      println("MoonVigil error: policy field \{field}: \{reason}")
+      exit_with_status(2)
+    }
+    @vigil.PolicyValidationError::ExpiredSuppression(
+      index~,
+      advisory_id~,
+      expires_on~
+    ) => {
+      println(
+        "MoonVigil error: suppression #\{index} (\{advisory_id}) expired on \{expires_on}",
+      )
+      exit_with_status(2)
+    }
     error => {
       println("MoonVigil error: \{error}")
       exit_with_status(2)
@@ -56,6 +70,13 @@ fn dispatch(args : Array[String]) -> Unit raise {
 
 ///|
 fn scan_command(path : String, rest : Array[String]) -> Unit raise {
+  if !options_are_valid(rest, [
+      "--db", "--format", "--output", "--policy", "--fail-on",
+    ]) {
+    println("MoonVigil error: invalid scan option or missing option value")
+    print_usage()
+    exit_with_status(2)
+  }
   if !@fs.path_exists(path) {
     println("MoonVigil error: scan path does not exist: \{path}")
     exit_with_status(2)
@@ -63,9 +84,27 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   let database_path = option_value(rest, "--db").unwrap_or("advisories.json")
   let format_name = option_value(rest, "--format").unwrap_or("terminal")
   let output = option_value(rest, "--output")
+  let policy_path = option_value(rest, "--policy")
+  let fail_on_override = option_value(rest, "--fail-on")
   let database = read_database(database_path)
   let dependencies = discover_dependencies(path)
-  let report = @vigil.scan(dependencies, database)
+  let base_report = @vigil.scan(dependencies, database)
+  let report = match (policy_path, fail_on_override) {
+    (Some(policy_file), threshold_override) => {
+      let today = utc_today()
+      let policy = @vigil.parse_policy(
+        @fs.read_file_to_string(policy_file),
+        today~,
+      )
+      @vigil.evaluate_policy(base_report, policy, threshold_override, today~).report
+    }
+    (None, Some(threshold)) => {
+      let today = utc_today()
+      let policy = @vigil.empty_policy(fail_on="info")
+      @vigil.evaluate_policy(base_report, policy, Some(threshold), today~).report
+    }
+    (None, None) => base_report
+  }
   let content = match format_name {
     "terminal" => @vigil.report_terminal(report)
     "json" => @vigil.report_json(report)
@@ -77,11 +116,20 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
     }
   }
   write_or_print(content, output)
-  exit_with_status(if report.findings.length() > 0 { 1 } else { 0 })
+  let blocking = match report.policy {
+    Some(policy) => policy.blocking_findings > 0
+    None => report.findings.length() > 0
+  }
+  exit_with_status(if blocking { 1 } else { 0 })
 }
 
 ///|
 fn sbom_command(path : String, rest : Array[String]) -> Unit raise {
+  if !options_are_valid(rest, ["--output"]) {
+    println("MoonVigil error: invalid sbom option or missing option value")
+    print_usage()
+    exit_with_status(2)
+  }
   if !@fs.path_exists(path) {
     println("MoonVigil error: sbom path does not exist: \{path}")
     exit_with_status(2)
@@ -228,10 +276,59 @@ fn option_value(args : Array[String], option : String) -> String? {
 }
 
 ///|
+fn options_are_valid(args : Array[String], allowed : Array[String]) -> Bool {
+  let seen : Map[String, Bool] = Map([])
+  let mut index = 0
+  while index < args.length() {
+    let option = args[index]
+    if !allowed.contains(option) ||
+      seen.contains(option) ||
+      index + 1 >= args.length() ||
+      args[index + 1].has_prefix("--") {
+      return false
+    }
+    seen[option] = true
+    index += 2
+  }
+  true
+}
+
+///|
+fn utc_today() -> String {
+  let days_since_epoch = (@env.now() / 86400000UL).to_int()
+  let shifted_days = days_since_epoch + 719468
+  let era = shifted_days / 146097
+  let day_of_era = shifted_days - era * 146097
+  let year_of_era = (
+      day_of_era - day_of_era / 1460 + day_of_era / 36524 - day_of_era / 146096
+    ) /
+    365
+  let mut year = year_of_era + era * 400
+  let day_of_year = day_of_era -
+    (365 * year_of_era + year_of_era / 4 - year_of_era / 100)
+  let month_part = (5 * day_of_year + 2) / 153
+  let day = day_of_year - (153 * month_part + 2) / 5 + 1
+  let month = if month_part < 10 { month_part + 3 } else { month_part - 9 }
+  if month <= 2 {
+    year += 1
+  }
+  "\{year}-\{two_digits(month)}-\{two_digits(day)}"
+}
+
+///|
+fn two_digits(value : Int) -> String {
+  if value < 10 {
+    "0\{value}"
+  } else {
+    value.to_string()
+  }
+}
+
+///|
 fn print_usage() -> Unit {
   println("MoonVigil — offline MoonBit dependency scanner")
   println(
-    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file]",
+    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info]",
   )
   println("  moon run cmd/main -- sbom <path> [--output file]")
   println("  moon run cmd/main -- db validate <advisories.json>")

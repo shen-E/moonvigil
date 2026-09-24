@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "fail_on": "high",
+  "suppressions": [
+    {
+      "advisory_id": "MOONVIGIL-2026-0001",
+      "package_name": "example/insecure-http",
+      "version": "0.1.5",
+      "reason": "Temporary compatibility exception for the policy fixture.",
+      "expires_on": "2099-12-31"
+    }
+  ]
+}

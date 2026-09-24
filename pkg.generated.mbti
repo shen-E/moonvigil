@@ -13,6 +13,10 @@ pub fn dependency_conflicts(Array[Dependency]) -> Array[DependencyConflict]
 
 pub fn dependency_scope_name(DependencyScope) -> String
 
+pub fn empty_policy(fail_on~ : String) -> ScanPolicy
+
+pub fn evaluate_policy(ScanReport, ScanPolicy, String?, today~ : String) -> PolicyEvaluation raise
+
 pub fn inventory_from_dependencies(Array[Dependency]) -> Inventory
 
 pub fn match_version(String, String) -> FindingStatus
@@ -24,6 +28,8 @@ pub fn parse_manifest(String, source~ : String) -> Array[Dependency] raise
 pub fn parse_moon_mod(String, source~ : String) -> Array[Dependency] raise
 
 pub fn parse_moon_pkg(String, source~ : String) -> Array[PackageImport] raise
+
+pub fn parse_policy(String, today~ : String) -> ScanPolicy raise
 
 pub fn report_json(ScanReport) -> String
 
@@ -37,6 +43,8 @@ pub fn scan(Array[Dependency], AdvisoryDatabase) -> ScanReport raise
 
 pub fn validate_database(AdvisoryDatabase) -> Unit raise
 
+pub fn validate_policy(ScanPolicy, today~ : String) -> Unit raise
+
 // Errors
 pub(all) suberror DatabaseValidationError {
   UnsupportedSchemaVersion(String)
@@ -47,6 +55,11 @@ pub(all) suberror DatabaseValidationError {
 
 pub(all) suberror ManifestParseError {
   InvalidManifest(source~ : String, line~ : Int, reason~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror PolicyValidationError {
+  InvalidPolicyField(field~ : String, reason~ : String)
+  ExpiredSuppression(index~ : Int, advisory_id~ : String, expires_on~ : String)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -98,6 +111,7 @@ pub struct Finding {
   dependency : Dependency
   advisory : Advisory
   status : FindingStatus
+  suppression : PolicySuppression?
 } derive(Eq, ToJson, @debug.Debug)
 
 pub enum FindingStatus {
@@ -118,12 +132,39 @@ pub struct PackageImport {
   source : String
 } derive(Eq, ToJson, @debug.Debug)
 
+pub struct PolicyEvaluation {
+  report : ScanReport
+  should_fail : Bool
+} derive(Eq, @debug.Debug)
+
+pub struct PolicySummary {
+  fail_on : String
+  blocking_findings : Int
+  suppressed_findings : Int
+  unmatched_suppressions : Array[PolicySuppression]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct PolicySuppression {
+  advisory_id : String
+  package_name : String
+  version : String
+  reason : String
+  expires_on : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct ScanPolicy {
+  schema_version : String
+  fail_on : String
+  suppressions : Array[PolicySuppression]
+} derive(Eq, ToJson, @debug.Debug)
+
 pub struct ScanReport {
   schema_version : String
   dependencies : Array[Dependency]
   findings : Array[Finding]
   uncomparable : Array[Finding]
   conflicts : Array[DependencyConflict]
+  policy : PolicySummary?
 } derive(Eq, ToJson, @debug.Debug)
 
 // Type aliases

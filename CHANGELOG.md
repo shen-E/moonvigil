@@ -18,6 +18,11 @@
 - Added compatibility tests from a commit-pinned public MoonBit parser manifest.
 - Added explicit diagnostics for version conflicts across the scanned tree and
   wrong-type/missing advisory fields.
+- Added schema-v1 CI policy parsing, exact-version suppressions, expiry checks,
+  configurable severity gates, and auditable JSON/SARIF suppression evidence.
+- Added `--policy` and `--fail-on` CLI options; policy files are opt-in and
+  default scan exit behavior is unchanged.
+- Upgraded JSON reports to schema v3 with optional policy evaluation details.
 
 ## 0.1.0
 - Added offline parsing for `moon.mod.json` and `moon.pkg.json` manifests.
