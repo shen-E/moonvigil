@@ -38,7 +38,27 @@ Library callers can use `baseline_from_report`, `parse_baseline`,
 ```sh
 moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
 moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
+moon run cmd/main --target native -- baseline validate baseline.json
 ```
+
+`baseline validate <file>` exits `0` for a valid v1 or v2 snapshot and `2` for
+an invalid, unsupported, or unreadable snapshot. It prints field-level errors
+for invalid v2 risk evidence. Schema v1 validation also prints a warning that
+the snapshot cannot detect advisory risk updates.
+
+To upgrade a v1 snapshot, generate a separate v2 candidate from a fresh scan;
+do not overwrite the original in-place:
+
+```sh
+moon run cmd/main --target native -- scan <project> --db advisories.json --baseline baseline-v1.json --baseline-output baseline-v2-candidate.json --format json --output baseline-migration-report.json
+moon run cmd/main --target native -- baseline validate baseline-v2-candidate.json
+```
+
+Review the report and candidate before replacing the tracked baseline. A
+generated snapshot represents the current affected direct dependencies; entries
+that are no longer detected will not be copied, and the report labels them
+without claiming they were remediated. The command does not modify the input
+baseline automatically.
 
 Matching uses the exact triple `(advisory_id, package_name, version)`. A
 version change is therefore a new key. For schema-v2 snapshots, changed

@@ -19,6 +19,7 @@ aliases do not change the canonical module name.
 moon check --target native
 moon test --target native
 moon run cmd/main --target native -- db validate advisories.json
+moon run cmd/main --target native -- baseline validate fixtures/baseline/valid-v2.json
 moon run cmd/main --target native -- scan fixtures/affected --db advisories.json
 moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format sarif --output report.sarif
 moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
@@ -93,6 +94,8 @@ keys in the snapshot that are no longer detected are reported separately
 without assuming they were remediated. Use
 `--baseline-output <file>` to explicitly write a current snapshot. See
 [`docs/baseline.md`](docs/baseline.md) for the schema and comparison behavior.
+Use `baseline validate <file>` to check either supported baseline schema before
+using it in CI.
 
 At the time of this check, the [official OSV schema's defined ecosystem list](https://ossf.github.io/osv-schema/)
 does not include MoonBit or Mooncakes. The pinned public fixture therefore
@@ -119,4 +122,4 @@ just build
 The native CLI uses a tiny C bridge solely to return standard process exit
 codes: `0` when no finding meets the configured gate, `1` when one or more
 unsuppressed findings meet it, and `2` for invalid command arguments, paths,
-databases, policies, or output files.
+databases, baselines, policies, or output files.

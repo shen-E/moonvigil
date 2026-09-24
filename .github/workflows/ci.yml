@@ -114,6 +114,16 @@ jobs:
           baseline_suppressed_sarif_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/duplicate-entry.json
           invalid_baseline_exit=$?
+          moon run cmd/main --target native -- baseline validate fixtures/baseline/initial.json > "$output_dir/baseline-v1.txt"
+          baseline_v1_validate_exit=$?
+          moon run cmd/main --target native -- baseline validate fixtures/baseline/valid-v2.json > "$output_dir/baseline-v2.txt"
+          baseline_v2_validate_exit=$?
+          moon run cmd/main --target native -- baseline validate fixtures/baseline/invalid-v2-range.json > "$output_dir/baseline-invalid.txt"
+          baseline_invalid_validate_exit=$?
+          moon run cmd/main --target native -- baseline validate fixtures/baseline/unsupported-version.json
+          baseline_unsupported_validate_exit=$?
+          moon run cmd/main --target native -- baseline validate fixtures/baseline/not-found.json
+          baseline_missing_validate_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --baseline-output fixtures/baseline/empty.json
           conflicting_baseline_paths_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on urgent
@@ -156,6 +166,11 @@ jobs:
           test "$baseline_suppressed_new_exit" -eq 0
           test "$baseline_suppressed_sarif_exit" -eq 0
           test "$invalid_baseline_exit" -eq 2
+          test "$baseline_v1_validate_exit" -eq 0
+          test "$baseline_v2_validate_exit" -eq 0
+          test "$baseline_invalid_validate_exit" -eq 2
+          test "$baseline_unsupported_validate_exit" -eq 2
+          test "$baseline_missing_validate_exit" -eq 2
           test "$conflicting_baseline_paths_exit" -eq 2
           test "$invalid_threshold_exit" -eq 2
           test "$missing_policy_value_exit" -eq 2
@@ -177,6 +192,10 @@ jobs:
           grep -q '"no_longer_detected"' "$output_dir/baseline-no-longer-detected.json"
           grep -q '"MV-BASELINE-0001"' "$output_dir/baseline-no-longer-detected.json"
           grep -q '"baseline_status": "New"' "$output_dir/baseline-new.json"
+          grep -q 'valid baseline v1: 1 entries' "$output_dir/baseline-v1.txt"
+          grep -q 'no advisory risk evidence' "$output_dir/baseline-v1.txt"
+          grep -q 'valid baseline v2: 1 entries' "$output_dir/baseline-v2.txt"
+          grep -q 'baseline entry #0 field affected' "$output_dir/baseline-invalid.txt"
           grep -q '"baselineState": "new"' "$output_dir/baseline-new.json"
           grep -q '"MOONVIGIL-2026-0001"' "$output_dir/generated-baseline.json"
           grep -q '"baseline_status": "Existing"' "$output_dir/repeated-baseline.json"

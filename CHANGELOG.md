@@ -7,6 +7,8 @@
   and participate in baseline-aware CI gates using their current severity.
 - Upgraded JSON reports to schema v5 with updated-finding counts and explicit
   legacy-v1 baseline status.
+- Added `baseline validate <file>` with schema-specific diagnostics and a
+  review-first v1-to-v2 baseline regeneration workflow.
 - Added schema-v2 baseline snapshots with validated advisory range, severity,
   and fixed-version evidence while retaining schema-v1 read compatibility.
 - Added a strict schema-v1 baseline snapshot API with deterministic creation,

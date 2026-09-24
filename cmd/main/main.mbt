@@ -87,6 +87,7 @@ fn dispatch(args : Array[String]) -> Unit raise {
     [_, "scan", path, .. rest] => scan_command(path, rest.to_owned())
     [_, "sbom", path, .. rest] => sbom_command(path, rest.to_owned())
     [_, "db", "validate", database, ..] => validate_database(database)
+    [_, "baseline", "validate", baseline] => validate_baseline_file(baseline)
     _ => {
       print_usage()
       exit_with_status(2)
@@ -222,6 +223,23 @@ fn validate_database(path : String) -> Unit raise {
   println(
     "valid advisory database v\{database.schema_version}: \{database.advisories.length()} advisories",
   )
+}
+
+///|
+fn validate_baseline_file(path : String) -> Unit raise {
+  if !@fs.path_exists(path) {
+    println("MoonVigil error: baseline path does not exist: \{path}")
+    exit_with_status(2)
+  }
+  let baseline = @vigil.parse_baseline(@fs.read_file_to_string(path))
+  println(
+    "valid baseline v\{baseline.schema_version}: \{baseline.entries.length()} entries",
+  )
+  if baseline.schema_version == "1" {
+    println(
+      "Warning: schema-v1 baseline has no advisory risk evidence; upgrade it by reviewing a regenerated schema-v2 snapshot.",
+    )
+  }
 }
 
 ///|
@@ -408,4 +426,5 @@ fn print_usage() -> Unit {
   )
   println("  moon run cmd/main -- sbom <path> [--output file]")
   println("  moon run cmd/main -- db validate <advisories.json>")
+  println("  moon run cmd/main -- baseline validate <baseline.json>")
 }
