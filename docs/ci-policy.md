@@ -1,14 +1,16 @@
 # CI policy
 
-MoonVigil can apply a local severity gate and narrowly scoped suppressions to a
-scan. Policy loading is opt-in: pass `--policy <file>` to use a policy. The
-scanner never discovers `moonvigil.policy.json` automatically. `--fail-on`
-overrides a policy's threshold for one invocation; it can also be used alone.
+MoonVigil can apply a local severity gate, dependency-scope filter, and narrowly
+scoped suppressions to a scan. Policy loading is opt-in: pass `--policy <file>`
+to use a policy. The scanner never discovers `moonvigil.policy.json`
+automatically. `--fail-on` and `--fail-on-scope` override the matching policy
+settings for one invocation; either option can also be used alone.
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "fail_on": "high",
+  "fail_on_scopes": ["runtime", "test"],
   "suppressions": [
     {
       "advisory_id": "MOONVIGIL-2026-0001",
@@ -21,9 +23,25 @@ overrides a policy's threshold for one invocation; it can also be used alone.
 }
 ```
 
-Allowed thresholds are `critical`, `high`, `medium`, `low`, and `info`. A
-finding blocks when its severity equals or exceeds the configured threshold.
-Uncomparable versions are reported but never block the gate.
+Policy schema v1 remains supported and defaults to all scopes, preserving its
+previous behavior. Schema v2 requires a non-empty `fail_on_scopes` array.
+Allowed scope names are `runtime`, `test`, `wbtest`, `other`, and
+`unclassified`. A dependency with more than one recorded scope participates if
+any one of those scopes is selected. Dependencies without scope metadata are
+treated as `unclassified`. The special value `all` selects every scope and
+must be the sole array entry.
+
+The CLI override accepts a comma-separated list, for example
+`--fail-on-scope runtime,test`. It replaces the policy's scope list for that
+scan; `--fail-on-scope all` selects every scope. Duplicate, empty, or unknown
+scope values are configuration errors. Scope selection affects only whether a
+finding blocks: findings remain visible in terminal, JSON, and SARIF. Policy
+summaries record the effective scopes and count of out-of-scope findings.
+
+Allowed severity thresholds are `critical`, `high`, `medium`, `low`, and
+`info`. A finding blocks when its severity equals or exceeds the configured
+threshold and it is in a selected scope. Uncomparable versions are reported
+but never block the gate.
 
 Each suppression must identify an exact advisory ID, canonical package name,
 and stable three-part version. The reason must be non-empty. `expires_on` must

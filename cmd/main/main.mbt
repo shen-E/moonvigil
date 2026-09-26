@@ -98,7 +98,8 @@ fn dispatch(args : Array[String]) -> Unit raise {
 ///|
 fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   if !options_are_valid(rest, [
-      "--db", "--format", "--output", "--policy", "--fail-on", "--baseline", "--baseline-output",
+      "--db", "--format", "--output", "--policy", "--fail-on", "--fail-on-scope",
+      "--baseline", "--baseline-output",
     ]) {
     println("MoonVigil error: invalid scan option or missing option value")
     print_usage()
@@ -113,6 +114,11 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   let output = option_value(rest, "--output")
   let policy_path = option_value(rest, "--policy")
   let fail_on_override = option_value(rest, "--fail-on")
+  let fail_on_scopes_override = option_value(rest, "--fail-on-scope").map(fn(
+    value,
+  ) {
+    value.split(",").to_array().map(fn(scope) { scope.trim().to_owned() })
+  })
   let baseline_path = option_value(rest, "--baseline")
   let baseline_output_path = option_value(rest, "--baseline-output")
   let baseline_conflicts_with_output = match baseline_path {
@@ -148,26 +154,33 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
       )
     None => base_report
   }
-  let report = match (policy_path, fail_on_override) {
-    (Some(policy_file), threshold_override) => {
+  let report = match policy_path {
+    Some(policy_file) => {
       let today = utc_today()
       let policy = @vigil.parse_policy(
         @fs.read_file_to_string(policy_file),
         today~,
       )
-      @vigil.evaluate_policy(
+      @vigil.evaluate_policy_with_scopes(
         compared_report,
         policy,
-        threshold_override,
+        fail_on_override,
+        fail_on_scopes_override,
         today~,
       ).report
     }
-    (None, Some(threshold)) => {
+    None if fail_on_override is Some(_) || fail_on_scopes_override is Some(_) => {
       let today = utc_today()
       let policy = @vigil.empty_policy(fail_on="info")
-      @vigil.evaluate_policy(compared_report, policy, Some(threshold), today~).report
+      @vigil.evaluate_policy_with_scopes(
+        compared_report,
+        policy,
+        fail_on_override,
+        fail_on_scopes_override,
+        today~,
+      ).report
     }
-    (None, None) => compared_report
+    None => compared_report
   }
   let content = match format_name {
     "terminal" => @vigil.report_terminal(report)
@@ -422,7 +435,7 @@ fn two_digits(value : Int) -> String {
 fn print_usage() -> Unit {
   println("MoonVigil — offline MoonBit dependency scanner")
   println(
-    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--baseline file] [--baseline-output file]",
+    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--fail-on-scope runtime,test|all] [--baseline file] [--baseline-output file]",
   )
   println("  moon run cmd/main -- sbom <path> [--output file]")
   println("  moon run cmd/main -- db validate <advisories.json>")

@@ -86,6 +86,30 @@ jobs:
           unmatched_suppression_exit=$?
           moon run cmd/main --target native -- scan fixtures/unknown-version --db advisories.json --fail-on critical --format json --output "$output_dir/uncomparable-policy.json"
           uncomparable_gate_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --format json --output "$output_dir/scope-runtime.json"
+          scope_runtime_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope wbtest --format terminal > "$output_dir/scope-terminal.txt"
+          scope_terminal_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope test,unclassified --format json --output "$output_dir/scope-test-unclassified.json"
+          scope_test_unclassified_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope all --format sarif --output "$output_dir/scope-all.sarif"
+          scope_all_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --policy fixtures/policy/runtime-only-v2.json --fail-on-scope test --format json --output "$output_dir/scope-policy-override.json"
+          scope_policy_override_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --fail-on critical --format json --output "$output_dir/scope-critical-threshold.json"
+          scope_critical_threshold_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --baseline fixtures/scopes/baseline-existing.json --fail-on-scope runtime --format json --output "$output_dir/scope-baseline-existing.json"
+          scope_baseline_existing_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,unknown
+          invalid_scope_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,runtime
+          duplicate_scope_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,
+          empty_scope_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --fail-on-scope test
+          repeated_scope_option_exit=$?
+          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope
+          missing_scope_value_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/expired-suppression.json
           expired_policy_exit=$?
           moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/malformed.json
@@ -152,6 +176,18 @@ jobs:
           test "$high_override_exit" -eq 1
           test "$unmatched_suppression_exit" -eq 1
           test "$uncomparable_gate_exit" -eq 0
+          test "$scope_runtime_exit" -eq 1
+          test "$scope_terminal_exit" -eq 1
+          test "$scope_test_unclassified_exit" -eq 1
+          test "$scope_all_exit" -eq 1
+          test "$scope_policy_override_exit" -eq 1
+          test "$scope_critical_threshold_exit" -eq 0
+          test "$scope_baseline_existing_exit" -eq 0
+          test "$invalid_scope_exit" -eq 2
+          test "$duplicate_scope_exit" -eq 2
+          test "$empty_scope_exit" -eq 2
+          test "$repeated_scope_option_exit" -eq 2
+          test "$missing_scope_value_exit" -eq 2
           test "$expired_policy_exit" -eq 2
           test "$malformed_policy_exit" -eq 2
           test "$baseline_new_exit" -eq 1
@@ -185,7 +221,18 @@ jobs:
           grep -q '"test"' "$output_dir/modern.json"
           test -s "$output_dir/suppressed.json"
           test -s "$output_dir/suppressed.sarif"
-          grep -q '"schema_version": "5"' "$output_dir/suppressed.json"
+          grep -q '"schema_version": "6"' "$output_dir/suppressed.json"
+          grep -q '"schema_version": "6"' "$output_dir/scope-runtime.json"
+          test "$(grep -c '"id": "MV-SCOPE-' "$output_dir/scope-runtime.json")" -eq 6
+          grep -q '"scope_excluded_findings": 4' "$output_dir/scope-runtime.json"
+          grep -q '"fail_on_scopes": \[' "$output_dir/scope-runtime.json"
+          grep -q 'scopes wbtest; 1 blocking, 5 out of scope' "$output_dir/scope-terminal.txt"
+          grep -q '"scopeExcludedFindings": 0' "$output_dir/scope-all.sarif"
+          grep -q '"failOnScopes": \[' "$output_dir/scope-all.sarif"
+          test "$(grep -c '"ruleId": "MV-SCOPE-' "$output_dir/scope-all.sarif")" -eq 6
+          grep -q '"fail_on_scopes": \[' "$output_dir/scope-policy-override.json"
+          grep -q '"blocking_findings": 2' "$output_dir/scope-policy-override.json"
+          grep -q '"blocking_findings": 0' "$output_dir/scope-baseline-existing.json"
           grep -q '"baselineState": "unchanged"' "$output_dir/baseline-existing.sarif"
           grep -q '"baseline_status": "Updated"' "$output_dir/baseline-updated.json"
           grep -q '"updated_findings": 1' "$output_dir/baseline-updated.json"

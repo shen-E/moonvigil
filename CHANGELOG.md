@@ -4,6 +4,11 @@
 
 - Added policy schema v2 scope selectors while preserving v1's all-scope gate
   behavior by default.
+- Added `--fail-on-scope` CLI overrides, multi-scope any-match gating, explicit
+  `unclassified` handling, and gate-only scope exclusions that retain all
+  findings in reports.
+- Upgraded JSON reports to schema v6 with effective gate scopes and
+  scope-excluded finding counts; SARIF policy metadata carries the same data.
 - Marked baseline entries as updated when affected range, severity, or fixed
   version changes; updated findings are visible in terminal, JSON, and SARIF
   and participate in baseline-aware CI gates using their current severity.

@@ -1,0 +1,17 @@
+import {
+  "scope/runtime",
+  "scope/multi",
+}
+
+import {
+  "scope/test",
+  "scope/multi",
+} for "test"
+
+import {
+  "scope/wbtest",
+} for "wbtest"
+
+import {
+  "scope/other",
+} for "custom"

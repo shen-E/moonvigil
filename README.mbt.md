@@ -26,6 +26,7 @@ moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
 moon run cmd/main --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
 moon run cmd/main --target native -- scan fixtures/affected --policy fixtures/policy/exact-suppression.json --format json --output report.json
 moon run cmd/main --target native -- scan fixtures/affected --fail-on critical
+moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,test
 moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
 moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
 ```
@@ -54,8 +55,9 @@ Each advisory needs at least one HTTP(S) reference with a valid authority. A
 fixed version is empty or a stable three-part version. The db validate command
 reports all semantic issues found in one pass.
 
-The JSON report schema is version 5 and includes dependency scopes, optional
-policy evidence, and optional baseline comparison state. A pinned
+The JSON report schema is version 6 and includes dependency scopes, effective
+policy scope gates and out-of-scope counts, plus optional baseline comparison
+state. A pinned
 public manifest fixture from moonbitlang/parser is provided under fixtures/real
 to exercise real-world manifest syntax; its source commit and license are
 documented alongside the fixture. This is compatibility evidence, not a claim
@@ -69,6 +71,17 @@ severity threshold. Without a baseline, existing behavior is unchanged: any
 affected dependency exits 1, no affected dependencies exit 0, and invalid
 arguments or inputs exit 2. With a policy, only unsuppressed findings at or
 above the threshold block; uncomparable versions never block.
+
+Policy schema v2 adds `fail_on_scopes`; schema v1 remains supported and gates
+all scopes by default. Select one or more of `runtime`, `test`, `wbtest`,
+`other`, and `unclassified`; an empty scope list on a dependency is treated as
+`unclassified`. A dependency used in multiple scopes is in scope when any one
+of its scopes is selected. The special value `all` selects every scope and
+must be used alone. The optional `--fail-on-scope runtime,test` CLI setting
+overrides policy scopes for one scan and can be used without a policy file.
+Scope filtering changes only the blocking decision: every finding remains in
+terminal, JSON, and SARIF output. Policy summaries include effective scopes
+and the count of findings excluded from the gate.
 
 When `--baseline <file>` is supplied, the default gate blocks new affected
 findings and findings whose advisory risk evidence changed. Existing findings

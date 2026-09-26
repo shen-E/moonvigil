@@ -75,5 +75,5 @@ input path must be distinct from report and snapshot output paths.
 With a baseline, exit code `1` means at least one new or updated, unsuppressed
 finding met the selected threshold (or any such finding when no explicit
 threshold is configured). Existing findings and no-longer-detected entries do
-not gate. JSON reports use schema v5 to represent updated state and baseline
-summary evidence.
+not gate. JSON reports use schema v6 to represent updated state, baseline
+summary evidence, and effective policy scopes when a gate is enabled.

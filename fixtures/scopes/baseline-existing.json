@@ -1,0 +1,11 @@
+{
+  "schema_version": "1",
+  "entries": [
+    {"advisory_id": "MV-SCOPE-RUNTIME", "package_name": "scope/runtime", "version": "1.0.0"},
+    {"advisory_id": "MV-SCOPE-TEST", "package_name": "scope/test", "version": "1.0.0"},
+    {"advisory_id": "MV-SCOPE-MULTI", "package_name": "scope/multi", "version": "1.0.0"},
+    {"advisory_id": "MV-SCOPE-WBTEST", "package_name": "scope/wbtest", "version": "1.0.0"},
+    {"advisory_id": "MV-SCOPE-OTHER", "package_name": "scope/other", "version": "1.0.0"},
+    {"advisory_id": "MV-SCOPE-UNCLASSIFIED", "package_name": "scope/unclassified", "version": "1.0.0"}
+  ]
+}

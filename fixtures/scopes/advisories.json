@@ -1,0 +1,59 @@
+{
+  "schema_version": "1",
+  "advisories": [
+    {
+      "id": "MV-SCOPE-RUNTIME",
+      "package_name": "scope/runtime",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional runtime-scope fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-RUNTIME"]
+    },
+    {
+      "id": "MV-SCOPE-TEST",
+      "package_name": "scope/test",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional test-scope fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-TEST"]
+    },
+    {
+      "id": "MV-SCOPE-MULTI",
+      "package_name": "scope/multi",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional multi-scope fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-MULTI"]
+    },
+    {
+      "id": "MV-SCOPE-WBTEST",
+      "package_name": "scope/wbtest",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional white-box-test fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-WBTEST"]
+    },
+    {
+      "id": "MV-SCOPE-OTHER",
+      "package_name": "scope/other",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional custom-scope fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-OTHER"]
+    },
+    {
+      "id": "MV-SCOPE-UNCLASSIFIED",
+      "package_name": "scope/unclassified",
+      "affected": "*",
+      "severity": "high",
+      "summary": "Fictional unclassified-scope fixture finding.",
+      "fixed_version": "",
+      "references": ["https://example.invalid/MV-SCOPE-UNCLASSIFIED"]
+    }
+  ]
+}

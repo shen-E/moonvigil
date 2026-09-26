@@ -9,7 +9,7 @@ pub struct PolicySuppression {
 } derive(Debug, Eq, ToJson)
 
 ///|
-/// CI policy for severity gating and exact-version suppressions.
+/// CI policy for severity/scope gating and exact-version suppressions.
 pub struct ScanPolicy {
   schema_version : String
   fail_on : String
@@ -41,7 +41,7 @@ pub(all) suberror PolicyValidationError {
 } derive(Debug, Eq)
 
 ///|
-/// Parse and validate a schema-v1 policy using a UTC date supplied by the caller.
+/// Parse and validate a policy using a UTC date supplied by the caller.
 /// Suppression expiries are inclusive: a rule remains active through expires_on.
 pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
   let root = match @json.parse(text) {
@@ -211,7 +211,7 @@ pub fn validate_policy(policy : ScanPolicy, today~ : String) -> Unit raise {
 }
 
 ///|
-/// Make an empty policy for callers that only want a command-line severity gate.
+/// Make an all-scopes policy for callers that use command-line gate overrides.
 pub fn empty_policy(fail_on~ : String) -> ScanPolicy {
   {
     schema_version: "2",

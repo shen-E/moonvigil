@@ -1,0 +1,6 @@
+{
+  "schema_version": "2",
+  "fail_on": "high",
+  "fail_on_scopes": ["runtime"],
+  "suppressions": []
+}

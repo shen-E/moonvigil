@@ -26,6 +26,11 @@ test "policy schema v2 normalizes selected scopes deterministically" {
   assert_eq(all.fail_on_scopes, [
     "runtime", "test", "wbtest", "other", "unclassified",
   ])
+  let trimmed_all = parse_policy(
+    "{\"schema_version\":\"2\",\"fail_on\":\"high\",\"fail_on_scopes\":[\" all \"]}",
+    today="2026-09-27",
+  )
+  assert_eq(trimmed_all.fail_on_scopes, all.fail_on_scopes)
 }
 
 ///|
