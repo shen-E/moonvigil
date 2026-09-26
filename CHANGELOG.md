@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added policy schema v2 scope selectors while preserving v1's all-scope gate
+  behavior by default.
 - Marked baseline entries as updated when affected range, severity, or fixed
   version changes; updated findings are visible in terminal, JSON, and SARIF
   and participate in baseline-aware CI gates using their current severity.

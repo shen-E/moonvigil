@@ -13,6 +13,7 @@ pub struct PolicySuppression {
 pub struct ScanPolicy {
   schema_version : String
   fail_on : String
+  fail_on_scopes : Array[String]
   suppressions : Array[PolicySuppression]
 } derive(Debug, Eq, ToJson)
 
@@ -51,6 +52,23 @@ pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
   }
   let schema_version = policy_string_field(root, "schema_version")
   let fail_on = policy_string_field(root, "fail_on")
+  let fail_on_scopes = match schema_version {
+    "1" =>
+      match root.get("fail_on_scopes") {
+        Some(_) =>
+          raise PolicyValidationError::InvalidPolicyField(
+            field="fail_on_scopes",
+            reason="is not supported by schema version 1",
+          )
+        None => all_policy_scopes()
+      }
+    "2" => parse_policy_scopes_field(root)
+    _ =>
+      raise PolicyValidationError::InvalidPolicyField(
+        field="schema_version",
+        reason="must be \"1\" or \"2\"",
+      )
+  }
   let suppressions : Array[PolicySuppression] = match root.get("suppressions") {
     None => []
     Some(Array(items)) => {
@@ -100,7 +118,7 @@ pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
         reason="must be an array",
       )
   }
-  let policy = { schema_version, fail_on, suppressions }
+  let policy = { schema_version, fail_on, fail_on_scopes, suppressions }
   validate_policy(policy, today~)
   policy
 }
@@ -108,16 +126,30 @@ pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
 ///|
 /// Validate a policy, including ISO date validity and expiration.
 pub fn validate_policy(policy : ScanPolicy, today~ : String) -> Unit raise {
-  if policy.schema_version != "1" {
+  if policy.schema_version != "1" && policy.schema_version != "2" {
     raise PolicyValidationError::InvalidPolicyField(
       field="schema_version",
-      reason="must be \"1\"",
+      reason="must be \"1\" or \"2\"",
     )
   }
   if !is_policy_severity(policy.fail_on) {
     raise PolicyValidationError::InvalidPolicyField(
       field="fail_on",
       reason="must be one of critical, high, medium, low, info",
+    )
+  }
+  let normalized_scopes = normalize_policy_scopes(policy.fail_on_scopes)
+  if !string_arrays_equal(normalized_scopes, policy.fail_on_scopes) {
+    raise PolicyValidationError::InvalidPolicyField(
+      field="fail_on_scopes",
+      reason="must be unique and use canonical scope order",
+    )
+  }
+  if policy.schema_version == "1" &&
+    !string_arrays_equal(policy.fail_on_scopes, all_policy_scopes()) {
+    raise PolicyValidationError::InvalidPolicyField(
+      field="fail_on_scopes",
+      reason="schema version 1 always gates all scopes",
     )
   }
   if !is_iso_date(today) {
@@ -179,7 +211,112 @@ pub fn validate_policy(policy : ScanPolicy, today~ : String) -> Unit raise {
 ///|
 /// Make an empty policy for callers that only want a command-line severity gate.
 pub fn empty_policy(fail_on~ : String) -> ScanPolicy {
-  { schema_version: "1", fail_on, suppressions: [] }
+  {
+    schema_version: "2",
+    fail_on,
+    fail_on_scopes: all_policy_scopes(),
+    suppressions: [],
+  }
+}
+
+///|
+fn parse_policy_scopes_field(fields : Map[String, Json]) -> Array[String] raise {
+  match fields.get("fail_on_scopes") {
+    Some(Array(items)) => {
+      let scopes : Array[String] = []
+      for index, item in items {
+        match item {
+          String(scope) => scopes.push(scope)
+          _ =>
+            raise PolicyValidationError::InvalidPolicyField(
+              field="fail_on_scopes[\{index}]",
+              reason="must be a string",
+            )
+        }
+      }
+      normalize_policy_scopes(scopes)
+    }
+    None =>
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes",
+        reason="is required by schema version 2",
+      )
+    _ =>
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes",
+        reason="must be an array of scope names",
+      )
+  }
+}
+
+///|
+fn normalize_policy_scopes(scopes : Array[String]) -> Array[String] raise {
+  if scopes.length() == 1 && scopes[0] == "all" {
+    return all_policy_scopes()
+  }
+  if scopes.length() == 0 {
+    raise PolicyValidationError::InvalidPolicyField(
+      field="fail_on_scopes",
+      reason="must contain at least one scope",
+    )
+  }
+  let seen : Map[String, Bool] = Map([])
+  for index, scope in scopes {
+    let normalized = scope.trim().to_owned()
+    if normalized == "" {
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes[\{index}]",
+        reason="must not be empty",
+      )
+    }
+    if normalized == "all" {
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes[\{index}]",
+        reason="all must be the only value",
+      )
+    }
+    if !is_policy_scope(normalized) {
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes[\{index}]",
+        reason="must be runtime, test, wbtest, other, unclassified, or all",
+      )
+    }
+    if seen.contains(normalized) {
+      raise PolicyValidationError::InvalidPolicyField(
+        field="fail_on_scopes[\{index}]",
+        reason="duplicates an earlier scope",
+      )
+    }
+    seen[normalized] = true
+  }
+  all_policy_scopes().filter(fn(scope) { seen.contains(scope) })
+}
+
+///|
+fn all_policy_scopes() -> Array[String] {
+  ["runtime", "test", "wbtest", "other", "unclassified"]
+}
+
+///|
+fn is_policy_scope(scope : String) -> Bool {
+  scope == "runtime" ||
+  scope == "test" ||
+  scope == "wbtest" ||
+  scope == "other" ||
+  scope == "unclassified"
+}
+
+///|
+fn string_arrays_equal(left : Array[String], right : Array[String]) -> Bool {
+  if left.length() != right.length() {
+    return false
+  }
+  for index in 0..<left.length() {
+    if left[index] != right[index] {
+      return false
+    }
+  }
+  true
 }
 
 ///|
