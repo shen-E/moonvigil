@@ -133,7 +133,7 @@ test "exact advisory package and version suppression remains auditable" {
   let json = report_json(evaluated.report)
   let terminal = report_terminal(evaluated.report)
   let sarif = report_sarif(evaluated.report)
-  assert_true(json.contains("\"schema_version\": \"5\""))
+  assert_true(json.contains("\"schema_version\": \"6\""))
   assert_true(json.contains("short-lived compatibility exception"))
   assert_true(terminal.contains("[suppressed]"))
   assert_true(terminal.contains("short-lived compatibility exception"))

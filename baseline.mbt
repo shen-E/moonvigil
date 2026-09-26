@@ -251,7 +251,7 @@ pub fn apply_baseline(
   }
   no_longer_detected.sort_by(baseline_entry_compare)
   {
-    schema_version: "5",
+    schema_version: "6",
     dependencies: report.dependencies,
     findings,
     uncomparable: report.uncomparable,

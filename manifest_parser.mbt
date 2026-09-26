@@ -1,6 +1,6 @@
 ///|
 /// The dependency usage context recorded in a MoonBit package manifest.
-pub enum DependencyScope {
+pub(all) enum DependencyScope {
   Runtime
   Test
   WhiteboxTest

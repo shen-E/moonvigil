@@ -290,7 +290,7 @@ pub fn scan(
     }
   }
   {
-    schema_version: "5",
+    schema_version: "6",
     dependencies,
     findings,
     uncomparable,
@@ -325,7 +325,7 @@ pub fn report_terminal(report : ScanReport) -> String {
   match report.policy {
     Some(policy) => {
       lines.push(
-        "Policy: fail on \{policy.fail_on}; \{policy.blocking_findings} blocking, \{policy.suppressed_findings} suppressed",
+        "Policy: fail on \{policy.fail_on}; scopes \{policy.fail_on_scopes.join(",")}; \{policy.blocking_findings} blocking, \{policy.scope_excluded_findings} out of scope, \{policy.suppressed_findings} suppressed",
       )
       for suppression in policy.unmatched_suppressions {
         lines.push(
@@ -420,7 +420,11 @@ fn dependency_conflict_json(conflict : DependencyConflict) -> Json {
 fn policy_summary_json(policy : PolicySummary) -> Json {
   Json::object({
     "failOn": Json::string(policy.fail_on),
+    "failOnScopes": Json::array(policy.fail_on_scopes.map(Json::string)),
     "blockingFindings": Json::number(policy.blocking_findings.to_double()),
+    "scopeExcludedFindings": Json::number(
+      policy.scope_excluded_findings.to_double(),
+    ),
     "suppressedFindings": Json::number(policy.suppressed_findings.to_double()),
     "unmatchedSuppressions": Json::array(
       policy.unmatched_suppressions.map(@json.to_json),

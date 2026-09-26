@@ -275,7 +275,7 @@ test "compares exact baseline keys and serializes every comparison state" {
       "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-EXISTING\",\"package_name\":\"example/current\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-NEW\",\"package_name\":\"example/new\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-REMOVED\",\"package_name\":\"example/removed\",\"version\":\"3.0.0\"}]}",
     ),
   )
-  assert_eq(compared.schema_version, "5")
+  assert_eq(compared.schema_version, "6")
   assert_true(compared.findings[0].baseline_status is Some(Existing))
   assert_true(compared.findings[1].baseline_status is Some(New))
   assert_eq(compared.uncomparable[0].baseline_status, None)
@@ -291,7 +291,7 @@ test "compares exact baseline keys and serializes every comparison state" {
   let json = report_json(compared)
   let terminal = report_terminal(compared)
   let sarif = report_sarif(compared)
-  assert_true(json.contains("\"schema_version\": \"5\""))
+  assert_true(json.contains("\"schema_version\": \"6\""))
   assert_true(json.contains("\"legacy_snapshot\": true"))
   assert_true(json.contains("\"baseline_status\": \"Existing\""))
   assert_true(terminal.contains("[existing]"))
@@ -333,7 +333,7 @@ test "detects risk evidence updates and gates them using current severity" {
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-RISK\",\"package_name\":\"example/risk\",\"affected\":\">=1.0.0 <2.0.0\",\"severity\":\"high\",\"summary\":\"risk fixture\",\"fixed_version\":\"2.0.0\",\"references\":[\"https://example.invalid/MV-RISK\"]}]}",
   )
   let updated = apply_baseline(scan(dependency, higher_database), old_snapshot)
-  assert_eq(updated.schema_version, "5")
+  assert_eq(updated.schema_version, "6")
   assert_true(updated.findings[0].baseline_status is Some(Updated))
   assert_eq(updated.baseline.unwrap().updated_findings, 1)
   let json = report_json(updated)
@@ -626,8 +626,8 @@ test "serializes complete affected and uncomparable evidence" {
   assert_true(terminal.contains("affected: >=1.0.0 <2.0.0"))
   assert_true(terminal.contains("fixed: 2.0.0"))
   assert_true(terminal.contains("[uncomparable]"))
-  assert_eq(report.schema_version, "5")
-  assert_true(json.contains("\"schema_version\": \"5\""))
+  assert_eq(report.schema_version, "6")
+  assert_true(json.contains("\"schema_version\": \"6\""))
   assert_true(sarif.contains("installedVersion"))
   assert_true(sarif.contains("matchStatus"))
   assert_true(sarif.contains("uncomparable"))

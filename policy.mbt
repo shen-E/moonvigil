@@ -21,7 +21,9 @@ pub struct ScanPolicy {
 /// Policy outcome attached to a scan report.
 pub struct PolicySummary {
   fail_on : String
+  fail_on_scopes : Array[String]
   blocking_findings : Int
+  scope_excluded_findings : Int
   suppressed_findings : Int
   unmatched_suppressions : Array[PolicySuppression]
 } derive(Debug, Eq, ToJson)
@@ -251,18 +253,18 @@ fn parse_policy_scopes_field(fields : Map[String, Json]) -> Array[String] raise 
 
 ///|
 fn normalize_policy_scopes(scopes : Array[String]) -> Array[String] raise {
-  if scopes.length() == 1 && scopes[0] == "all" {
+  let trimmed = scopes.map(fn(scope) { scope.trim().to_owned() })
+  if trimmed.length() == 1 && trimmed[0] == "all" {
     return all_policy_scopes()
   }
-  if scopes.length() == 0 {
+  if trimmed.length() == 0 {
     raise PolicyValidationError::InvalidPolicyField(
       field="fail_on_scopes",
       reason="must contain at least one scope",
     )
   }
   let seen : Map[String, Bool] = Map([])
-  for index, scope in scopes {
-    let normalized = scope.trim().to_owned()
+  for index, normalized in trimmed {
     if normalized == "" {
       raise PolicyValidationError::InvalidPolicyField(
         field="fail_on_scopes[\{index}]",
@@ -327,6 +329,20 @@ pub fn evaluate_policy(
   fail_on_override : String?,
   today~ : String,
 ) -> PolicyEvaluation raise {
+  evaluate_policy_with_scopes(report, policy, fail_on_override, None, today~)
+}
+
+///|
+/// Apply severity, scope, baseline, and exact-match suppression rules while
+/// retaining all findings in the report. A scope override replaces policy
+/// scopes for this evaluation only.
+pub fn evaluate_policy_with_scopes(
+  report : ScanReport,
+  policy : ScanPolicy,
+  fail_on_override : String?,
+  fail_on_scopes_override : Array[String]?,
+  today~ : String,
+) -> PolicyEvaluation raise {
   validate_policy(policy, today~)
   let fail_on = match fail_on_override {
     Some(value) if is_policy_severity(value) => value
@@ -337,11 +353,31 @@ pub fn evaluate_policy(
       )
     None => policy.fail_on
   }
+  let fail_on_scopes = match fail_on_scopes_override {
+    Some(scopes) => normalize_policy_scopes(scopes)
+    None => policy.fail_on_scopes
+  }
   let matched : Array[Bool] = policy.suppressions.map(fn(_) { false })
   let findings : Array[Finding] = []
   let mut suppressed_findings = 0
+  let mut scope_excluded_findings = 0
   let mut blocking_findings = 0
   for finding in report.findings {
+    let finding_scopes = finding.dependency.scopes.map(dependency_scope_name)
+    let effective_finding_scopes = if finding_scopes.length() == 0 {
+      ["unclassified"]
+    } else {
+      finding_scopes
+    }
+    let mut in_scope = false
+    for scope in effective_finding_scopes {
+      if fail_on_scopes.contains(scope) {
+        in_scope = true
+      }
+    }
+    if !in_scope {
+      scope_excluded_findings += 1
+    }
     let mut selected : PolicySuppression? = None
     for index, suppression in policy.suppressions {
       if selected is None && suppression_matches(suppression, finding) {
@@ -360,7 +396,8 @@ pub fn evaluate_policy(
           }
         None => true
       }
-      if baseline_allows_gate &&
+      if in_scope &&
+        baseline_allows_gate &&
         policy_severity_rank(finding.advisory.severity) >=
         policy_severity_rank(fail_on) {
         blocking_findings += 1
@@ -382,12 +419,14 @@ pub fn evaluate_policy(
   }
   let policy_summary = {
     fail_on,
+    fail_on_scopes,
     blocking_findings,
+    scope_excluded_findings,
     suppressed_findings,
     unmatched_suppressions,
   }
   let evaluated_report = {
-    schema_version: "5",
+    schema_version: "6",
     dependencies: report.dependencies,
     findings,
     uncomparable: report.uncomparable,
