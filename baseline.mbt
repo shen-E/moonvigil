@@ -173,7 +173,7 @@ pub fn baseline_from_report(report : ScanReport) -> ScanBaseline {
     }
   }
   entries.sort_by(baseline_entry_compare)
-  { schema_version: "2", entries }
+  { schema_version: "2", entries, }
 }
 
 ///|

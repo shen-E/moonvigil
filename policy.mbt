@@ -120,7 +120,7 @@ pub fn parse_policy(text : String, today~ : String) -> ScanPolicy raise {
         reason="must be an array",
       )
   }
-  let policy = { schema_version, fail_on, fail_on_scopes, suppressions }
+  let policy = { schema_version, fail_on, fail_on_scopes, suppressions, }
   validate_policy(policy, today~)
   policy
 }
@@ -434,7 +434,7 @@ pub fn evaluate_policy_with_scopes(
     policy: Some(policy_summary),
     baseline: report.baseline,
   }
-  { report: evaluated_report, should_fail: blocking_findings > 0 }
+  { report: evaluated_report, should_fail: blocking_findings > 0, }
 }
 
 ///|
