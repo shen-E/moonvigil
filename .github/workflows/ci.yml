@@ -26,7 +26,7 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s latest
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          moon version
+          "$HOME/.moon/bin/moon" version
           "$HOME/.moon/bin/moon" update
       - name: Verify formatting
         run: moon fmt --check
