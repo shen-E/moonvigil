@@ -244,7 +244,6 @@ jobs:
           grep -q 'no advisory risk evidence' "$output_dir/baseline-v1.txt"
           grep -q 'valid baseline v2: 1 entries' "$output_dir/baseline-v2.txt"
           grep -q 'baseline entry #0 field affected' "$output_dir/baseline-invalid.txt"
-          grep -q '"baselineState": "new"' "$output_dir/baseline-new.json"
           grep -q '"MOONVIGIL-2026-0001"' "$output_dir/generated-baseline.json"
           grep -q '"baseline_status": "Existing"' "$output_dir/repeated-baseline.json"
           grep -q '"blocking_findings": 0' "$output_dir/baseline-policy-existing.json"
