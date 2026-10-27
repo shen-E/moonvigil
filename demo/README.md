@@ -42,7 +42,7 @@ To exercise the modern manifest parser against pinned public project data,
 run the compatibility scan from the repository root:
 
 ```sh
-moon run cmd/main --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
+moon run cmd/moonvigil --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
 ```
 
 This validates manifest compatibility only; the empty local database is not

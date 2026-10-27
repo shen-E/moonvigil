@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonvigil/moonvigil"
+package "shen-E/moonvigil"
 
 import {
   "moonbitlang/core/debug",

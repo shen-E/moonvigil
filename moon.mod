@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "moonvigil/moonvigil"
+name = "shen-E/moonvigil"
 
 version = "0.2.0"
 

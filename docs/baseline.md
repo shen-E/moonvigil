@@ -36,9 +36,9 @@ Library callers can use `baseline_from_report`, `parse_baseline`,
 `--baseline-output <file>` to explicitly write a new snapshot:
 
 ```sh
-moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
-moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
-moon run cmd/main --target native -- baseline validate baseline.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --baseline-output baseline.json
+moon run cmd/moonvigil --target native -- baseline validate baseline.json
 ```
 
 `baseline validate <file>` exits `0` for a valid v1 or v2 snapshot and `2` for
@@ -50,8 +50,8 @@ To upgrade a v1 snapshot, generate a separate v2 candidate from a fresh scan;
 do not overwrite the original in-place:
 
 ```sh
-moon run cmd/main --target native -- scan <project> --db advisories.json --baseline baseline-v1.json --baseline-output baseline-v2-candidate.json --format json --output baseline-migration-report.json
-moon run cmd/main --target native -- baseline validate baseline-v2-candidate.json
+moon run cmd/moonvigil --target native -- scan <project> --db advisories.json --baseline baseline-v1.json --baseline-output baseline-v2-candidate.json --format json --output baseline-migration-report.json
+moon run cmd/moonvigil --target native -- baseline validate baseline-v2-candidate.json
 ```
 
 Review the report and candidate before replacing the tracked baseline. A

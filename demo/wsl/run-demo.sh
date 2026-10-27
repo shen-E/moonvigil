@@ -22,10 +22,10 @@ moon fmt --check
 moon check --target native --warn-list +73
 moon test --target native
 moon build --target native
-moon run cmd/main --target native -- db validate demo/advisories.json
+moon run cmd/moonvigil --target native -- db validate demo/advisories.json
 
 set +e
-moon run cmd/main --target native -- scan demo/project --db demo/advisories.json
+moon run cmd/moonvigil --target native -- scan demo/project --db demo/advisories.json
 scan_exit=$?
 set -e
 if [ "$scan_exit" -ne 1 ]; then
@@ -34,17 +34,17 @@ if [ "$scan_exit" -ne 1 ]; then
 fi
 
 scan_exit=0
-moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/report.json" || scan_exit=$?
+moon run cmd/moonvigil --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/report.json" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected JSON scan output to exit with 1." >&2
   exit 1
 fi
 scan_exit=0
-moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format sarif --output "$output_dir/report.sarif" || scan_exit=$?
+moon run cmd/moonvigil --target native -- scan demo/project --db demo/advisories.json --format sarif --output "$output_dir/report.sarif" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected SARIF scan output to exit with 1." >&2
   exit 1
 fi
-moon run cmd/main --target native -- sbom demo/project --output "$output_dir/bom.json"
+moon run cmd/moonvigil --target native -- sbom demo/project --output "$output_dir/bom.json"
 
 echo "Demonstration artifacts are ready in the selected output directory."

@@ -4,7 +4,7 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/x/fs",
   "moonbitlang/x/path",
-  "moonvigil/moonvigil" @vigil,
+  "shen-E/moonvigil" @vigil,
 }
 
 pkgtype(kind: "executable")

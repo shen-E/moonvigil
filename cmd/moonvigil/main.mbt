@@ -477,9 +477,9 @@ fn print_usage() -> Unit {
   println("MoonVigil — offline MoonBit dependency scanner")
   println("  moonvigil --help | --version")
   println(
-    "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--fail-on-scope runtime,test|all] [--baseline file] [--baseline-output file]",
+    "  moon run cmd/moonvigil -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--fail-on-scope runtime,test|all] [--baseline file] [--baseline-output file]",
   )
-  println("  moon run cmd/main -- sbom <path> [--output file]")
-  println("  moon run cmd/main -- db validate <advisories.json>")
-  println("  moon run cmd/main -- baseline validate <baseline.json>")
+  println("  moon run cmd/moonvigil -- sbom <path> [--output file]")
+  println("  moon run cmd/moonvigil -- db validate <advisories.json>")
+  println("  moon run cmd/moonvigil -- baseline validate <baseline.json>")
 }
