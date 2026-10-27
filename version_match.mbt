@@ -1,10 +1,10 @@
 ///|
 priv enum VersionComparator {
-  Less(Array[Int])
-  LessOrEqual(Array[Int])
-  Greater(Array[Int])
-  GreaterOrEqual(Array[Int])
-  Equal(Array[Int])
+  Less(Array[Int32])
+  LessOrEqual(Array[Int32])
+  Greater(Array[Int32])
+  GreaterOrEqual(Array[Int32])
+  Equal(Array[Int32])
 }
 
 ///|
@@ -88,7 +88,7 @@ fn parse_comparator(text : String) -> VersionComparator? {
 }
 
 ///|
-fn parse_version(version : String) -> Array[Int]? {
+fn parse_version(version : String) -> Array[Int32]? {
   let raw = version.trim().to_owned()
   if raw.contains("-") || raw.contains("+") {
     return None
@@ -97,7 +97,7 @@ fn parse_version(version : String) -> Array[Int]? {
   if pieces.length() != 3 {
     return None
   }
-  let values : Array[Int] = []
+  let values : Array[Int32] = []
   for piece in pieces {
     match parse_numeric_component(piece.to_owned()) {
       Some(value) => values.push(value)
@@ -108,7 +108,7 @@ fn parse_version(version : String) -> Array[Int]? {
 }
 
 ///|
-fn parse_numeric_component(component : String) -> Int? {
+fn parse_numeric_component(component : String) -> Int32? {
   if component == "" ||
     component.length() > 10 ||
     (component.length() > 1 && component[0] == '0') {
@@ -130,7 +130,7 @@ fn parse_numeric_component(component : String) -> Int? {
 }
 
 ///|
-fn digit_value(char : Char) -> Int? {
+fn digit_value(char : Char) -> Int32? {
   match char {
     '0' => Some(0)
     '1' => Some(1)
@@ -148,7 +148,7 @@ fn digit_value(char : Char) -> Int? {
 
 ///|
 fn matches_comparator(
-  version : Array[Int],
+  version : Array[Int32],
   comparator : VersionComparator,
 ) -> Bool {
   match comparator {
@@ -161,7 +161,7 @@ fn matches_comparator(
 }
 
 ///|
-fn compare_versions(left : Array[Int], right : Array[Int]) -> Int {
+fn compare_versions(left : Array[Int32], right : Array[Int32]) -> Int32 {
   for index in 0..<3 {
     if left[index] < right[index] {
       return -1

@@ -1,5 +1,10 @@
 # WSL2 Ubuntu demonstration
 
+For automated acceptance on Windows, Linux, or macOS, run
+`python scripts/acceptance.py` from the repository root. It also writes a
+terminal report, JSON, SARIF, and SBOM evidence, and verifies the exit code of
+every command. The shell demonstration below is intended for a recording.
+
 Run this demonstration from an Ubuntu 24.04 WSL shell:
 
 ```sh
@@ -11,6 +16,9 @@ For a predictable relative output directory, pass one explicitly:
 ```sh
 ./demo/wsl/run-demo.sh demo-artifacts
 ```
+
+The script uses the installation selected by `MOON_HOME` when it is set,
+including an isolated toolchain; otherwise it uses `$HOME/.moon`.
 
 The script installs MoonBit and updates the package registry only if the
 toolchain is missing, then builds and tests MoonVigil and validates the local

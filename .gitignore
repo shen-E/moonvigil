@@ -2,5 +2,7 @@ _build/
 .mooncakes/
 .githooks/
 .demo-output/
+.acceptance-output/
+__pycache__/
 *.sarif
 *.jsonl

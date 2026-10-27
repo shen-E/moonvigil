@@ -15,6 +15,20 @@ aliases do not change the canonical module name.
 
 ## Run
 
+The checked native toolchain is `moon 0.1.20261023` / `moonc v0.10.17`.
+For the full build, regression, and CLI
+acceptance checks on Windows, Linux, or macOS, also install Python 3.8 or newer:
+
+```sh
+python scripts/acceptance.py
+```
+
+This writes actual command results and sample reports to
+`.acceptance-output/summary.json` and the same output directory. See
+[`docs/acceptance.md`](docs/acceptance.md) for the September hackathon criteria,
+validation coverage, and current evidence. CI runs this same script on all
+three operating systems and uploads the results.
+
 ```sh
 moon check --target native
 moon test --target native
@@ -124,6 +138,18 @@ does not query the network, execute project code, infer lock files or
 transitive dependencies, perform source-code SAST, or claim that an unknown
 version is safe.
 
+Usage scopes are attached within the nearest module boundary before inventory
+deduplication, including legacy package import arrays. A test import in a
+nested project cannot change another project's usage scopes. Malformed import
+declarations stop a scan with a source and line diagnostic. An empty directory
+or an unrelated file is an input error.
+
+The scanner rejects symbolic links to directories or manifests, including
+Windows reparse points, to prevent traversal loops and scanning outside the
+selected tree. Unrelated file links are ignored. Output paths must be distinct
+from input manifests, databases, policies, baselines, and one another; checks
+include relative path aliases and existing hard links or symbolic links.
+
 ## Development
 
 ```sh
@@ -132,7 +158,8 @@ just test
 just build
 ```
 
-The native CLI uses a tiny C bridge solely to return standard process exit
-codes: `0` when no finding meets the configured gate, `1` when one or more
+The native CLI uses small C bridges for process exit codes, file identity, and
+link detection. Exit codes are `0` when no finding meets the configured gate,
+`1` when one or more
 unsuppressed findings meet it, and `2` for invalid command arguments, paths,
 databases, baselines, policies, or output files.

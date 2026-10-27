@@ -169,3 +169,186 @@ test "parses commit-pinned public MoonBit manifests offline" {
     }),
   )
 }
+
+///|
+test "rejects malformed module dependency identities instead of truncating them" {
+  for
+    value in [
+      "@1.2.3", "org/client@", "org/client@1.2.3@2.0.0", "org//client@1.2.3", "org/client/../other@1.2.3",
+      "org/client @1.2.3",
+    ] {
+    let manifest = "name = \"fixture/app\"\nimport {\n  \"\{value}\",\n}"
+    try parse_moon_mod(manifest, source="broken/moon.mod") catch {
+      ManifestParseError::InvalidManifest(source~, line~, reason~) => {
+        assert_eq(source, "broken/moon.mod")
+        assert_eq(line, 3)
+        assert_eq(reason, "invalid module dependency: \{value}")
+      }
+      _ => fail("expected invalid module dependency")
+    } noraise {
+      _ => fail("accepted invalid module dependency: \{value}")
+    }
+  }
+}
+
+///|
+test "rejects malformed import entries and aliases with the offending line" {
+  let malformed : Array[(String, Int32, String)] = [
+    ("import \"org/client\"", 1, "expected { after import"),
+    ("import {\n  org/client,\n}", 2, "expected a quoted import entry"),
+    ("import {\n  \"\",\n}", 2, "empty import entry"),
+    ("import {\n  ,\n}", 2, "expected a quoted import entry"),
+    (
+      "import {\n  \"org/client\"\n  \"org/other\"\n}", 3, "expected a comma or } after import entry",
+    ),
+    ("import {\n  \"org/client\" @,\n}", 2, "expected an alias after @"),
+    ("import {\n  \"org/client\" @5bad,\n}", 2, "expected an alias after @"),
+    (
+      "import {\n  \"org/client\" @first @second,\n}", 2, "expected a comma or } after import entry",
+    ),
+    (
+      "import { \"org/client\" } for test", 1, "expected a quoted scope after for",
+    ),
+    (
+      "import { \"org/client\" } for \"\"", 1, "expected a quoted scope after for",
+    ),
+    (
+      "import { \"org/client\" } for \"test\" + \"wbtest\"", 1, "unexpected token after import block",
+    ),
+  ]
+  for (manifest, expected_line, expected_reason) in malformed {
+    try parse_moon_pkg(manifest, source="broken/moon.pkg") catch {
+      ManifestParseError::InvalidManifest(source~, line~, reason~) => {
+        assert_eq(source, "broken/moon.pkg")
+        assert_eq(line, expected_line)
+        assert_eq(reason, expected_reason)
+      }
+      _ => fail("expected invalid import entry")
+    } noraise {
+      _ => fail("accepted malformed import entry: \{manifest}")
+    }
+  }
+}
+
+///|
+test "rejects package aliases and scope qualifiers in module manifests" {
+  for
+    manifest in [
+      "import { \"org/client@1.2.3\" @client, }", "import { \"org/client@1.2.3\", } for \"test\"",
+      "import { \"org/client@1.2.3\", } for \"runtime\"",
+    ] {
+    try parse_moon_mod(manifest, source="moon.mod") catch {
+      ManifestParseError::InvalidManifest(source~, line~, reason=_) => {
+        assert_eq(source, "moon.mod")
+        assert_eq(line, 1)
+      }
+      _ => fail("expected invalid module import qualifier")
+    } noraise {
+      _ => fail("accepted invalid module import qualifier")
+    }
+  }
+}
+
+///|
+test "does not rewrite an escaped dependency into another module identity" {
+  let manifest =
+    #|import { "org/cli\ent@1.2.3", }
+  try parse_moon_mod(manifest, source="moon.mod") catch {
+    ManifestParseError::InvalidManifest(source~, line~, reason~) => {
+      assert_eq(source, "moon.mod")
+      assert_eq(line, 1)
+      assert_eq(reason, "invalid string literal")
+    }
+    _ => fail("expected escaped dependency error")
+  } noraise {
+    _ => fail("escaped dependency was silently rewritten")
+  }
+}
+
+///|
+test "decodes valid escaped module identities without losing dependency matches" {
+  let dependencies = parse_moon_mod(
+    (
+      #|import { "org\/cli\u0065nt@1.2.3", }
+    ),
+    source="moon.mod",
+  )
+  assert_eq(dependencies[0].name, "org/client")
+  assert_eq(dependencies[0].version, "1.2.3")
+  let imports = parse_moon_pkg(
+    (
+      #|import { "org\/cli\u0065nt\/http", }
+    ),
+    source="moon.pkg",
+  )
+  assert_eq(imports[0].package_name, "org/client/http")
+  assert_eq(apply_package_imports(dependencies, imports)[0].scopes, [Runtime])
+}
+
+///|
+test "preserves existing aliases and scopes when applying more package imports" {
+  let dependencies = [
+    Dependency(
+      name="org/client",
+      version="1.2.3",
+      source="moon.mod.json",
+      aliases=["legacy", "legacy"],
+      scopes=[Test, Test],
+    ),
+  ]
+  let imports = parse_moon_pkg(
+    "import { \"org/client/http\" @http, }",
+    source="moon.pkg",
+  )
+  let scoped = apply_package_imports(dependencies, imports)
+  assert_eq(scoped[0].aliases, ["http", "legacy"])
+  assert_eq(scoped[0].scopes, [Runtime, Test])
+  assert_eq(scoped[0].source, "moon.mod.json")
+  assert_eq(apply_package_imports(scoped, imports), scoped)
+  assert_eq(apply_package_imports(scoped, []), scoped)
+  assert_eq(dependencies[0].aliases, ["legacy", "legacy"])
+  assert_eq(dependencies[0].scopes, [Test, Test])
+}
+
+///|
+test "preserves custom scopes and accepts supported alias spelling" {
+  let imports = parse_moon_pkg(
+    (
+      #|import {
+      #|  "org/client/one" @foo-bar,
+      #|  "org/client/two" @_helper,
+      #|} for "custom"
+    ),
+    source="moon.pkg",
+  )
+  assert_eq(imports.length(), 2)
+  assert_true(imports.all(fn(package_import) { package_import.scope is Other }))
+  assert_eq(imports[0].alias_name, "foo-bar")
+  assert_eq(imports[1].alias_name, "_helper")
+  assert_eq(
+    PackageImport(
+      package_name="org/client/one",
+      alias_name="foo-bar",
+      scope=Other,
+      source="moon.pkg",
+    ),
+    imports[0],
+  )
+}
+
+///|
+test "rejects version qualifiers and invalid path segments in package imports" {
+  for
+    path in ["org/client@1.2.3", "org//client", "org/client/", "org/../client"] {
+    try parse_moon_pkg("import { \"\{path}\", }", source="moon.pkg") catch {
+      ManifestParseError::InvalidManifest(source~, line~, reason~) => {
+        assert_eq(source, "moon.pkg")
+        assert_eq(line, 1)
+        assert_eq(reason, "invalid package import: \{path}")
+      }
+      _ => fail("expected invalid package import path")
+    } noraise {
+      _ => fail("accepted invalid package import path")
+    }
+  }
+}

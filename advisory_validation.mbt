@@ -1,7 +1,7 @@
 ///|
 /// A semantic validation failure in a local advisory database.
 pub(all) struct DatabaseIssue {
-  index : Int
+  index : Int32
   id : String
   field : String
   reason : String
@@ -11,7 +11,12 @@ pub(all) struct DatabaseIssue {
 pub(all) suberror DatabaseValidationError {
   UnsupportedSchemaVersion(String)
   InvalidDatabaseField(field~ : String, reason~ : String)
-  InvalidAdvisory(index~ : Int, id~ : String, field~ : String, reason~ : String)
+  InvalidAdvisory(
+    index~ : Int32,
+    id~ : String,
+    field~ : String,
+    reason~ : String
+  )
   MultipleInvalidAdvisories(Array[DatabaseIssue])
 } derive(Debug, Eq)
 
@@ -174,7 +179,7 @@ fn validate_database_shape(json : Json) -> Unit raise {
 ///|
 fn validate_database_string_field(
   fields : Map[String, Json],
-  index~ : Int,
+  index~ : Int32,
   id~ : String,
   field : String,
   issues : Array[DatabaseIssue],
@@ -189,7 +194,7 @@ fn validate_database_string_field(
 ///|
 fn validate_database_references_field(
   fields : Map[String, Json],
-  index~ : Int,
+  index~ : Int32,
   id~ : String,
   issues : Array[DatabaseIssue],
 ) -> Unit {
@@ -297,7 +302,7 @@ fn valid_url_host(host : String) -> Bool {
   }
   for char in host {
     match char {
-      'a'..='z' | '0'..='9' | '.' | '-' => ()
+      'a'..<='z' | '0'..<='9' | '.' | '-' => ()
       _ => return false
     }
   }

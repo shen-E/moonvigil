@@ -15,6 +15,9 @@ test:
 build:
     moon build --target native
 
+acceptance:
+    python3 scripts/acceptance.py
+
 validate-db:
     moon run cmd/main --target native -- db validate advisories.json
 

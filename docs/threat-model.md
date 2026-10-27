@@ -13,6 +13,13 @@ branches, tags, malformed strings, and non-SemVer schemes from being silently
 classified as either safe or vulnerable. Operators are responsible for the
 authenticity and freshness of `advisories.json`.
 
+Directory and manifest symlinks (and Windows reparse points) are rejected so
+traversal cannot loop or cross a linked directory boundary. Unrelated file
+symlinks are ignored. Empty scans fail rather than reporting zero findings for
+an unrecognized input. Outputs cannot alias any scanned manifest or supplied
+database, policy, or baseline, including through existing filesystem links.
+These checks assume the filesystem is not concurrently modified during a scan.
+
 The WSL demonstration may download MoonBit only when the build toolchain is
 absent. That bootstrap step is separate from scanning: the scanner itself reads
 only local manifests and a local advisory database, and never executes code in

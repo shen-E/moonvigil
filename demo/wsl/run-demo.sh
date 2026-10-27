@@ -5,14 +5,14 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 output_dir=${1:-"$(mktemp -d "${TMPDIR:-/tmp}/moonvigil-demo.XXXXXX")"}
 mkdir -p "$output_dir"
 
-export PATH="$HOME/.moon/bin:$PATH"
+export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
 if ! command -v moon >/dev/null 2>&1; then
   echo "MoonBit is not installed; preparing the build toolchain."
   installer=$(mktemp "${TMPDIR:-/tmp}/moonbit-install.XXXXXX.sh")
   trap 'rm -f "$installer"' EXIT
   curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o "$installer"
   bash "$installer"
-  export PATH="$HOME/.moon/bin:$PATH"
+  export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
   moon update
 fi
 
@@ -33,11 +33,13 @@ if [ "$scan_exit" -ne 1 ]; then
   exit 1
 fi
 
+scan_exit=0
 moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/report.json" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected JSON scan output to exit with 1." >&2
   exit 1
 fi
+scan_exit=0
 moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format sarif --output "$output_dir/report.sarif" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected SARIF scan output to exit with 1." >&2

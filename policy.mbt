@@ -22,9 +22,9 @@ pub struct ScanPolicy {
 pub struct PolicySummary {
   fail_on : String
   fail_on_scopes : Array[String]
-  blocking_findings : Int
-  scope_excluded_findings : Int
-  suppressed_findings : Int
+  blocking_findings : Int32
+  scope_excluded_findings : Int32
+  suppressed_findings : Int32
   unmatched_suppressions : Array[PolicySuppression]
 } derive(Debug, Eq, ToJson)
 
@@ -37,7 +37,11 @@ pub struct PolicyEvaluation {
 ///|
 pub(all) suberror PolicyValidationError {
   InvalidPolicyField(field~ : String, reason~ : String)
-  ExpiredSuppression(index~ : Int, advisory_id~ : String, expires_on~ : String)
+  ExpiredSuppression(
+    index~ : Int32,
+    advisory_id~ : String,
+    expires_on~ : String
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -441,7 +445,7 @@ pub fn evaluate_policy_with_scopes(
 fn policy_string_field(
   fields : Map[String, Json],
   field : String,
-  key? : String = "",
+  key~ : String = "",
 ) -> String raise {
   let lookup = if key == "" { field } else { key }
   match fields.get(lookup) {
@@ -468,7 +472,7 @@ fn is_policy_severity(value : String) -> Bool {
 }
 
 ///|
-fn policy_severity_rank(value : String) -> Int {
+fn policy_severity_rank(value : String) -> Int32 {
   match value {
     "critical" => 5
     "high" => 4
@@ -530,7 +534,7 @@ fn is_iso_date(value : String) -> Bool {
 }
 
 ///|
-fn date_number(chars : Array[Char], start : Int, length : Int) -> Int? {
+fn date_number(chars : Array[Char], start : Int32, length : Int32) -> Int32? {
   let mut value = 0
   for index in start..<(start + length) {
     match digit_value(chars[index]) {
@@ -542,6 +546,6 @@ fn date_number(chars : Array[Char], start : Int, length : Int) -> Int? {
 }
 
 ///|
-fn is_leap_year(year : Int) -> Bool {
+fn is_leap_year(year : Int32) -> Bool {
   year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)
 }

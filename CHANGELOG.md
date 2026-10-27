@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+- Added a cross-platform acceptance command that checks build steps, CLI exit
+  codes, report contents, input preservation, and link handling; CI preserves
+  the evidence on Linux, macOS, and Windows.
+- Added exact manifest filename checks and explicit errors for directories
+  without manifests, duplicate or empty options, and extra command arguments.
+- Prevented output/input collisions through relative path aliases, hard links,
+  and symbolic links; rejected linked directories and manifests during traversal.
+- Attached legacy package import scopes and kept nested module usage separate
+  before inventory deduplication.
+- Rejected malformed modern import entries with source line diagnostics and
+  decoded escaped package identities correctly.
+- Preserved pre-existing import aliases and scopes during annotation, and
+  normalized inventory scope order for reproducible reports.
+- Added the required CycloneDX document version, escaped package URLs and SARIF
+  artifact URIs, and deduplicated SBOM components.
+- Added `--help` and `--version`, populated repository metadata, and fixed
+  stale exit-code checks in the WSL demonstration.
+- Applied the October toolchain's formatter migrations for integer types,
+  range patterns, and optional parameters; runtime behavior and APIs are retained.
 
 - Added policy schema v2 scope selectors while preserving v1's all-scope gate
   behavior by default.

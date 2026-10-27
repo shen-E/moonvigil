@@ -1,6 +1,10 @@
 ///|
 fn main {
   dispatch(@env.args()) catch {
+    CliError::InvalidInput(reason) => {
+      println("MoonVigil error: \{reason}")
+      exit_with_status(2)
+    }
     @vigil.BaselineValidationError::UnsupportedBaselineSchemaVersion(version) => {
       println(
         "MoonVigil error: baseline schema_version must be \"1\" or \"2\", got \"\{version}\"",
@@ -84,9 +88,11 @@ fn main {
 ///|
 fn dispatch(args : Array[String]) -> Unit raise {
   match args {
+    [_] | [_, "--help"] | [_, "-h"] => print_usage()
+    [_, "--version"] => println("MoonVigil 0.2.0")
     [_, "scan", path, .. rest] => scan_command(path, rest.to_owned())
     [_, "sbom", path, .. rest] => sbom_command(path, rest.to_owned())
-    [_, "db", "validate", database, ..] => validate_database(database)
+    [_, "db", "validate", database] => validate_database(database)
     [_, "baseline", "validate", baseline] => validate_baseline_file(baseline)
     _ => {
       print_usage()
@@ -121,30 +127,25 @@ fn scan_command(path : String, rest : Array[String]) -> Unit raise {
   })
   let baseline_path = option_value(rest, "--baseline")
   let baseline_output_path = option_value(rest, "--baseline-output")
-  let baseline_conflicts_with_output = match baseline_path {
-    Some(input_path) => {
-      let report_conflict = match output {
-        Some(report_path) => report_path == input_path
-        None => false
-      }
-      let snapshot_conflict = match baseline_output_path {
-        Some(snapshot_path) => snapshot_path == input_path
-        None => false
-      }
-      report_conflict || snapshot_conflict
+  let outputs : Array[String] = []
+  for destination in [output, baseline_output_path] {
+    if destination is Some(file) {
+      outputs.push(file)
     }
-    None => false
   }
-  let outputs_conflict = match (output, baseline_output_path) {
-    (Some(report_path), Some(snapshot_path)) => report_path == snapshot_path
-    _ => false
+  let inputs = [database_path]
+  for input in [baseline_path, policy_path] {
+    if input is Some(file) {
+      inputs.push(file)
+    }
   }
-  if baseline_conflicts_with_output || outputs_conflict {
-    println("MoonVigil error: baseline and output paths must be distinct")
-    exit_with_status(2)
+  let manifests = discover_manifests(path)
+  for manifest in manifests {
+    inputs.push(manifest)
   }
+  validate_output_paths(outputs, inputs)
   let database = read_database(database_path)
-  let dependencies = discover_dependencies(path)
+  let dependencies = read_dependencies(path, manifests)
   let base_report = @vigil.scan(dependencies, database)
   let compared_report = match baseline_path {
     Some(file) =>
@@ -224,10 +225,12 @@ fn sbom_command(path : String, rest : Array[String]) -> Unit raise {
     println("MoonVigil error: sbom path does not exist: \{path}")
     exit_with_status(2)
   }
-  write_or_print(
-    @vigil.sbom_json(discover_dependencies(path)),
-    option_value(rest, "--output"),
-  )
+  let manifests = discover_manifests(path)
+  let output = option_value(rest, "--output")
+  if output is Some(file) {
+    validate_output_paths([file], manifests)
+  }
+  write_or_print(@vigil.sbom_json(read_dependencies(path, manifests)), output)
 }
 
 ///|
@@ -269,41 +272,85 @@ fn write_or_print(content : String, output : String?) -> Unit raise {
 }
 
 ///|
-fn discover_dependencies(path : String) -> Array[@vigil.Dependency] raise {
+fn discover_manifests(path : String) -> Array[String] raise {
   let manifests : Array[String] = []
   collect_manifests(path, manifests)
+  if manifests.is_empty() {
+    raise InvalidInput("no MoonBit manifests found: \{path}")
+  }
+  manifests
+}
+
+///|
+fn read_dependencies(
+  path : String,
+  manifests : Array[String],
+) -> Array[@vigil.Dependency] raise {
   let dependencies : Array[@vigil.Dependency] = []
   let package_imports : Array[@vigil.PackageImport] = []
+  let module_sources : Array[String] = []
   for manifest in manifests {
     let source = relative_manifest_path(path, manifest)
     let text = @fs.read_file_to_string(manifest)
-    if manifest.has_suffix("moon.mod") {
+    let name = @path.Path(manifest).basename().to_owned()
+    if name == "moon.mod" {
+      module_sources.push(source)
       for dependency in @vigil.parse_moon_mod(text, source~) {
         dependencies.push(dependency)
       }
-    } else if manifest.has_suffix("moon.pkg") {
+    } else if name == "moon.pkg" {
       for package_import in @vigil.parse_moon_pkg(text, source~) {
         package_imports.push(package_import)
       }
     } else {
+      if name == "moon.mod.json" {
+        module_sources.push(source)
+      }
       for dependency in @vigil.parse_manifest(text, source~) {
         dependencies.push(dependency)
       }
+      if name == "moon.pkg.json" {
+        for package_import in legacy_package_imports(text, source~) {
+          package_imports.push(package_import)
+        }
+      }
     }
   }
-  let inventory = @vigil.inventory_from_dependencies(dependencies).dependencies
-  @vigil.apply_package_imports(inventory, package_imports)
+  let annotated : Array[@vigil.Dependency] = []
+  let owners = dependencies.map(fn(dependency) {
+    module_owner(dependency.source, module_sources)
+  })
+  let seen : Map[String, Bool] = Map([])
+  for owner in owners {
+    if !seen.contains(owner) {
+      seen[owner] = true
+      let group = dependencies.filter(fn(dependency) {
+        module_owner(dependency.source, module_sources) == owner
+      })
+      let imports = package_imports.filter(fn(package_import) {
+        module_owner(package_import.source, module_sources) == owner
+      })
+      for dependency in @vigil.apply_package_imports(group, imports) {
+        annotated.push(dependency)
+      }
+    }
+  }
+  @vigil.inventory_from_dependencies(annotated).dependencies
 }
 
 ///|
 fn collect_manifests(path : String, manifests : Array[String]) -> Unit raise {
+  if native_is_link(@utf8.encode(path)) != 0 {
+    if is_manifest_name(@path.Path(path).basename().to_owned()) ||
+      (@fs.path_exists(path) && @fs.is_dir(path)) {
+      raise InvalidInput(
+        "symbolic links and reparse points are not scanned: \{path}",
+      )
+    }
+    return
+  }
   if @fs.is_file(path) {
-    if (
-        path.has_suffix("moon.mod") ||
-        path.has_suffix("moon.pkg") ||
-        path.has_suffix("moon.mod.json") ||
-        path.has_suffix("moon.pkg.json")
-      ) &&
+    if is_manifest_name(@path.Path(path).basename().to_owned()) &&
       !is_shadowed_legacy_manifest(path) {
       manifests.push(path)
     }
@@ -323,14 +370,7 @@ fn is_shadowed_legacy_manifest(path : String) -> Bool {
   if !path.has_suffix(".json") {
     return false
   }
-  let parts = normalize_path_separators(path).split("/").to_array()
-  if parts.length() < 2 {
-    return false
-  }
-  let mut parent = parts[0].to_owned()
-  for index in 1..<(parts.length() - 1) {
-    parent = "\{parent}/\{parts[index]}"
-  }
+  let parent = @path.Path(path).dirname().to_string()
   let modern_name = if path.has_suffix("moon.mod.json") {
     "moon.mod"
   } else if path.has_suffix("moon.pkg.json") {
@@ -391,7 +431,8 @@ fn options_are_valid(args : Array[String], allowed : Array[String]) -> Bool {
     if !allowed.contains(option) ||
       seen.contains(option) ||
       index + 1 >= args.length() ||
-      args[index + 1].has_prefix("--") {
+      args[index + 1].has_prefix("--") ||
+      args[index + 1] == "" {
       return false
     }
     seen[option] = true
@@ -423,7 +464,7 @@ fn utc_today() -> String {
 }
 
 ///|
-fn two_digits(value : Int) -> String {
+fn two_digits(value : Int32) -> String {
   if value < 10 {
     "0\{value}"
   } else {
@@ -434,6 +475,7 @@ fn two_digits(value : Int) -> String {
 ///|
 fn print_usage() -> Unit {
   println("MoonVigil — offline MoonBit dependency scanner")
+  println("  moonvigil --help | --version")
   println(
     "  moon run cmd/main -- scan <path> [--db advisories.json] [--format terminal|json|sarif] [--output file] [--policy file] [--fail-on critical|high|medium|low|info] [--fail-on-scope runtime,test|all] [--baseline file] [--baseline-output file]",
   )
