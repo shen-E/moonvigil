@@ -193,7 +193,7 @@ test "rejects malformed module dependency identities instead of truncating them"
 
 ///|
 test "rejects malformed import entries and aliases with the offending line" {
-  let malformed : Array[(String, Int, String)] = [
+  let malformed : Array[(String, Int32, String)] = [
     ("import \"org/client\"", 1, "expected { after import"),
     ("import {\n  org/client,\n}", 2, "expected a quoted import entry"),
     ("import {\n  \"\",\n}", 2, "empty import entry"),

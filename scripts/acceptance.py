@@ -527,12 +527,17 @@ class Acceptance:
 
     def finish(self, error=None):
         failed = [record["name"] for record in self.commands if not all(item["passed"] for item in record["assertions"])]
+        reproduce = ["python", "scripts/acceptance.py", "--output", self.clean(self.relative(self.output))]
+        if self.moon != "moon":
+            reproduce.extend(["--moon", self.clean(self.moon)])
+        if self.timeout != 180:
+            reproduce.extend(["--timeout", str(self.timeout)])
         summary = {
             "schema_version": 1,
             "created_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "platform": platform.system(),
             "python_version": platform.python_version(),
-            "reproduce": ["python", "scripts/acceptance.py", "--output", self.clean(self.relative(self.output))],
+            "reproduce": reproduce,
             "passed": not failed and error is None,
             "command_count": len(self.commands),
             "assertion_count": sum(len(record["assertions"]) for record in self.commands),
@@ -543,9 +548,13 @@ class Acceptance:
         }
         if error is not None:
             summary["error"] = self.clean(str(error))
+        if os.environ.get("MOON_HOME"):
+            summary["environment"] = {"MOON_HOME": self.clean(os.environ["MOON_HOME"])}
         path = self.output / "summary.json"
         path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"{'PASS' if summary['passed'] else 'FAIL'}: {len(self.commands)} commands, {summary['assertion_count']} assertions, {len(self.skipped)} skipped link checks")
+        if failed:
+            print("Failed checks: " + ", ".join(failed))
         print("Summary: " + self.clean(self.relative(path)))
         return 0 if summary["passed"] else 1
 

@@ -46,14 +46,14 @@ priv enum ManifestToken {
 ///|
 priv struct LocatedManifestToken {
   token : ManifestToken
-  line : Int
+  line : Int32
 }
 
 ///|
 priv struct ManifestEntry {
   value : String
   alias_name : String
-  line : Int
+  line : Int32
 }
 
 ///|
@@ -61,12 +61,12 @@ priv struct ManifestImportBlock {
   entries : Array[ManifestEntry]
   scope : String
   has_scope : Bool
-  line : Int
+  line : Int32
 }
 
 ///|
 pub(all) suberror ManifestParseError {
-  InvalidManifest(source~ : String, line~ : Int, reason~ : String)
+  InvalidManifest(source~ : String, line~ : Int32, reason~ : String)
 } derive(Debug, Eq)
 
 ///|
@@ -351,7 +351,7 @@ fn parse_import_blocks(
 }
 
 ///|
-fn skip_newlines(tokens : Array[LocatedManifestToken], start : Int) -> Int {
+fn skip_newlines(tokens : Array[LocatedManifestToken], start : Int32) -> Int32 {
   let mut index = start
   while index < tokens.length() && tokens[index].token is Newline {
     index += 1
@@ -497,7 +497,7 @@ fn tokenize_manifest(
 ///|
 fn is_identifier_char(char : Char) -> Bool {
   match char {
-    'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' => true
+    'a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_' | '-' => true
     _ => false
   }
 }
@@ -522,7 +522,7 @@ fn valid_import_path(value : String) -> Bool {
 ///|
 fn manifest_token_error(
   tokens : Array[LocatedManifestToken],
-  index : Int,
+  index : Int32,
   source~ : String,
   reason~ : String,
 ) -> ManifestParseError {

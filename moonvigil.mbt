@@ -13,8 +13,8 @@ pub fn Dependency::Dependency(
   name~ : String,
   version~ : String,
   source~ : String,
-  aliases? : Array[String] = [],
-  scopes? : Array[DependencyScope] = [],
+  aliases~ : Array[String] = [],
+  scopes~ : Array[DependencyScope] = [],
 ) -> Dependency {
   { name, version, source, aliases, scopes, }
 }
@@ -44,7 +44,7 @@ pub fn inventory_from_dependencies(
 ) -> Inventory {
   let normalized : Array[Dependency] = []
   for dependency in dependencies {
-    let mut duplicate : Int? = None
+    let mut duplicate : Int32? = None
     for index in 0..<normalized.length() {
       let existing = normalized[index]
       if existing.name == dependency.name &&
@@ -154,7 +154,7 @@ fn merge_strings(left : Array[String], right : Array[String]) -> Array[String] {
 }
 
 ///|
-fn dependency_compare(left : Dependency, right : Dependency) -> Int {
+fn dependency_compare(left : Dependency, right : Dependency) -> Int32 {
   let by_name = lexicographic_compare(left.name, right.name)
   if by_name != 0 {
     by_name
@@ -169,7 +169,7 @@ fn dependency_compare(left : Dependency, right : Dependency) -> Int {
 }
 
 ///|
-fn lexicographic_compare(left : String, right : String) -> Int {
+fn lexicographic_compare(left : String, right : String) -> Int32 {
   let left_chars = left.to_array()
   let right_chars = right.to_array()
   let common_length = if left_chars.length() < right_chars.length() {
@@ -624,7 +624,7 @@ fn is_sarif_help_reference(reference : String) -> Bool {
         if index + 2 >= chars.length() ||
           !chars[index + 1:index + 3].all(fn(char) {
             match char {
-              '0'..='9' | 'a'..='f' | 'A'..='F' => true
+              '0'..<='9' | 'a'..<='f' | 'A'..<='F' => true
               _ => false
             }
           }) {
@@ -634,9 +634,9 @@ fn is_sarif_help_reference(reference : String) -> Bool {
         continue
       }
       '#' if !fragment => fragment = true
-      'a'..='z'
-      | 'A'..='Z'
-      | '0'..='9'
+      'a'..<='z'
+      | 'A'..<='Z'
+      | '0'..<='9'
       | '-'
       | '.'
       | '_'
@@ -715,11 +715,11 @@ fn sarif_artifact_uri(source : String) -> String {
 
 ///|
 // Escape URI data as UTF-8 octets, preserving path separators only when requested.
-fn percent_encode(value : String, allow_slash? : Bool = false) -> String {
+fn percent_encode(value : String, allow_slash~ : Bool = false) -> String {
   let result = StringBuilder()
   for char in value {
     match char {
-      'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '.' | '_' | '~' =>
+      'a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '.' | '_' | '~' =>
         result.write_char(char)
       '/' if allow_slash => result.write_char(char)
       _ => {
@@ -746,7 +746,7 @@ fn percent_encode(value : String, allow_slash? : Bool = false) -> String {
 }
 
 ///|
-fn write_percent_octet(result : StringBuilder, value : Int) -> Unit {
+fn write_percent_octet(result : StringBuilder, value : Int32) -> Unit {
   let hex = "0123456789ABCDEF".to_array()
   result.write_char('%')
   result.write_char(hex[value >> 4])

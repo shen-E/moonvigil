@@ -19,6 +19,8 @@
   artifact URIs, and deduplicated SBOM components.
 - Added `--help` and `--version`, populated repository metadata, and fixed
   stale exit-code checks in the WSL demonstration.
+- Applied the October toolchain's formatter migrations for integer types,
+  range patterns, and optional parameters; runtime behavior and APIs are retained.
 
 - Added policy schema v2 scope selectors while preserving v1's all-scope gate
   behavior by default.

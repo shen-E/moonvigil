@@ -61,24 +61,24 @@ pub fn validate_policy(ScanPolicy, today~ : String) -> Unit raise
 pub(all) suberror BaselineValidationError {
   UnsupportedBaselineSchemaVersion(String)
   InvalidBaselineField(field~ : String, reason~ : String)
-  InvalidBaselineEntry(index~ : Int, field~ : String, reason~ : String)
-  DuplicateBaselineEntry(index~ : Int, advisory_id~ : String)
+  InvalidBaselineEntry(index~ : Int32, field~ : String, reason~ : String)
+  DuplicateBaselineEntry(index~ : Int32, advisory_id~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror DatabaseValidationError {
   UnsupportedSchemaVersion(String)
   InvalidDatabaseField(field~ : String, reason~ : String)
-  InvalidAdvisory(index~ : Int, id~ : String, field~ : String, reason~ : String)
+  InvalidAdvisory(index~ : Int32, id~ : String, field~ : String, reason~ : String)
   MultipleInvalidAdvisories(Array[DatabaseIssue])
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror ManifestParseError {
-  InvalidManifest(source~ : String, line~ : Int, reason~ : String)
+  InvalidManifest(source~ : String, line~ : Int32, reason~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror PolicyValidationError {
   InvalidPolicyField(field~ : String, reason~ : String)
-  ExpiredSuppression(index~ : Int, advisory_id~ : String, expires_on~ : String)
+  ExpiredSuppression(index~ : Int32, advisory_id~ : String, expires_on~ : String)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -113,16 +113,16 @@ pub enum BaselineFindingStatus {
 } derive(Eq, ToJson, @debug.Debug)
 
 pub struct BaselineSummary {
-  snapshot_entries : Int
-  new_findings : Int
-  existing_findings : Int
-  updated_findings : Int
+  snapshot_entries : Int32
+  new_findings : Int32
+  existing_findings : Int32
+  updated_findings : Int32
   legacy_snapshot : Bool
   no_longer_detected : Array[BaselineEntry]
 } derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct DatabaseIssue {
-  index : Int
+  index : Int32
   id : String
   field : String
   reason : String
@@ -185,9 +185,9 @@ pub struct PolicyEvaluation {
 pub struct PolicySummary {
   fail_on : String
   fail_on_scopes : Array[String]
-  blocking_findings : Int
-  scope_excluded_findings : Int
-  suppressed_findings : Int
+  blocking_findings : Int32
+  scope_excluded_findings : Int32
+  suppressed_findings : Int32
   unmatched_suppressions : Array[PolicySuppression]
 } derive(Eq, ToJson, @debug.Debug)
 

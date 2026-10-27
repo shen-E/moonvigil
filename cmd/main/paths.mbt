@@ -1,10 +1,10 @@
 ///|
 #borrow(left, right)
-extern "C" fn native_same_file(left : Bytes, right : Bytes) -> Int = "moonvigil_same_file"
+extern "C" fn native_same_file(left : Bytes, right : Bytes) -> Int32 = "moonvigil_same_file"
 
 ///|
 #borrow(path)
-extern "C" fn native_is_link(path : Bytes) -> Int = "moonvigil_is_link"
+extern "C" fn native_is_link(path : Bytes) -> Int32 = "moonvigil_is_link"
 
 ///|
 priv suberror CliError {

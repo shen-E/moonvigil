@@ -27,10 +27,10 @@ pub enum BaselineFindingStatus {
 ///|
 /// Summary of a baseline comparison, including keys no longer observed.
 pub struct BaselineSummary {
-  snapshot_entries : Int
-  new_findings : Int
-  existing_findings : Int
-  updated_findings : Int
+  snapshot_entries : Int32
+  new_findings : Int32
+  existing_findings : Int32
+  updated_findings : Int32
   legacy_snapshot : Bool
   no_longer_detected : Array[BaselineEntry]
 } derive(Debug, Eq, ToJson)
@@ -39,8 +39,8 @@ pub struct BaselineSummary {
 pub(all) suberror BaselineValidationError {
   UnsupportedBaselineSchemaVersion(String)
   InvalidBaselineField(field~ : String, reason~ : String)
-  InvalidBaselineEntry(index~ : Int, field~ : String, reason~ : String)
-  DuplicateBaselineEntry(index~ : Int, advisory_id~ : String)
+  InvalidBaselineEntry(index~ : Int32, field~ : String, reason~ : String)
+  DuplicateBaselineEntry(index~ : Int32, advisory_id~ : String)
 } derive(Debug, Eq)
 
 ///|
@@ -213,7 +213,7 @@ pub fn apply_baseline(
   let mut existing_findings = 0
   let mut updated_findings = 0
   for finding in report.findings {
-    let mut existing_index : Int? = None
+    let mut existing_index : Int32? = None
     for index, entry in baseline.entries {
       if baseline_entry_matches_finding(entry, finding) {
         existing_index = Some(index)
@@ -356,7 +356,7 @@ fn baseline_entry_equal(left : BaselineEntry, right : BaselineEntry) -> Bool {
 }
 
 ///|
-fn baseline_entry_compare(left : BaselineEntry, right : BaselineEntry) -> Int {
+fn baseline_entry_compare(left : BaselineEntry, right : BaselineEntry) -> Int32 {
   let advisory = lexicographic_compare(left.advisory_id, right.advisory_id)
   if advisory != 0 {
     return advisory

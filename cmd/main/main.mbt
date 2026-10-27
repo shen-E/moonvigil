@@ -464,7 +464,7 @@ fn utc_today() -> String {
 }
 
 ///|
-fn two_digits(value : Int) -> String {
+fn two_digits(value : Int32) -> String {
   if value < 10 {
     "0\{value}"
   } else {

@@ -15,7 +15,8 @@ aliases do not change the canonical module name.
 
 ## Run
 
-Requires the MoonBit native toolchain. For the full build, regression, and CLI
+The checked native toolchain is `moon 0.1.20261023` / `moonc v0.10.17`.
+For the full build, regression, and CLI
 acceptance checks on Windows, Linux, or macOS, also install Python 3.8 or newer:
 
 ```sh

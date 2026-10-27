@@ -21,8 +21,8 @@ are pinned because the live site changes for later events.
 
 ## Reproduce
 
-Install the native MoonBit toolchain and Python 3.8 or newer, then run from the
-repository root:
+Install the native MoonBit toolchain (`moon 0.1.20261023` / `moonc v0.10.17`
+was checked) and Python 3.8 or newer, then run from the repository root:
 
 ```sh
 python scripts/acceptance.py
@@ -53,15 +53,16 @@ failures are recorded as skipped checks rather than reported as passes.
 | Environment | MoonBit tests | Acceptance commands | Assertions | Skipped link checks |
 | --- | --- | --- | --- | --- |
 | Windows native | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
-| Ubuntu 24.04 under WSL2, native Linux executable | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
 
-Both runs used `moon 0.1.20260920 (914d7da)` and
-`moonc v0.10.14+7d59c7ec9`. The toolchain emits existing deprecation and
+The current run used `moon 0.1.20261023 (3778465)` and
+`moonc v0.10.17+d971670cd`. The same native behavior also passed these checks
+on Ubuntu 24.04 under WSL2 before the mechanical toolchain syntax update.
+The toolchain emits existing deprecation and
 unqualified-test-import warnings; build and type checks complete with zero
 errors. CI records its installed toolchain in each run rather than assuming
 that the official `latest` installer will remain at this version.
 
-Six SARIF artifacts and one SBOM from the Windows run also passed the official
+Six SARIF artifacts and one SBOM from the initial Windows run also passed the official
 SARIF 2.1.0 and CycloneDX 1.5 JSON schemas, including URI format checks, using
 Python `jsonschema 4.10.3`. The separate `schema-validation.json` evidence
 records schema source URLs, Git blob IDs, artifact SHA-256 hashes, and results.
