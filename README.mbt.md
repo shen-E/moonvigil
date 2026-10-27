@@ -13,7 +13,27 @@ declarations are reported once with a deterministic relative manifest location
 as evidence. Package imports retain runtime, test, and white-box test scopes;
 aliases do not change the canonical module name.
 
-## Run
+## Install
+
+Add the library to a MoonBit module:
+
+```sh
+moon add shen-E/moonvigil@0.2.0
+```
+
+Import `shen-E/moonvigil` in the consuming package's `moon.pkg`. The native
+command can be installed independently:
+
+```sh
+moon install shen-E/moonvigil/cmd/moonvigil@0.2.0
+moonvigil --version
+moonvigil scan ./your-project --db ./advisories.json
+```
+
+The advisory database is an explicit local input. Download or maintain it
+separately; installing the command does not update vulnerability data.
+
+## Run from source
 
 The checked native toolchain is `moon 0.1.20261023` / `moonc v0.10.17`.
 For the full build, regression, and CLI
@@ -32,17 +52,17 @@ three operating systems and uploads the results.
 ```sh
 moon check --target native
 moon test --target native
-moon run cmd/main --target native -- db validate advisories.json
-moon run cmd/main --target native -- baseline validate fixtures/baseline/valid-v2.json
-moon run cmd/main --target native -- scan fixtures/affected --db advisories.json
-moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format sarif --output report.sarif
-moon run cmd/main --target native -- sbom fixtures/affected --output bom.json
-moon run cmd/main --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
-moon run cmd/main --target native -- scan fixtures/affected --policy fixtures/policy/exact-suppression.json --format json --output report.json
-moon run cmd/main --target native -- scan fixtures/affected --fail-on critical
-moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,test
-moon run cmd/main --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
-moon run cmd/main --target native -- scan fixtures/affected --baseline-output baseline.json
+moon run cmd/moonvigil --target native -- db validate advisories.json
+moon run cmd/moonvigil --target native -- baseline validate fixtures/baseline/valid-v2.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --db advisories.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --db advisories.json --format sarif --output report.sarif
+moon run cmd/moonvigil --target native -- sbom fixtures/affected --output bom.json
+moon run cmd/moonvigil --target native -- scan fixtures/real/moonbitlang-parser --db fixtures/empty-database.json --format json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --policy fixtures/policy/exact-suppression.json --format json --output report.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --fail-on critical
+moon run cmd/moonvigil --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,test
+moon run cmd/moonvigil --target native -- scan fixtures/affected --baseline fixtures/baseline/empty.json
+moon run cmd/moonvigil --target native -- scan fixtures/affected --baseline-output baseline.json
 ```
 
 ## Linux demonstration

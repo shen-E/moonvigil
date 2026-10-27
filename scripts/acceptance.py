@@ -177,7 +177,7 @@ class Acceptance:
             ("release-build", ["build", "--target", "native", "--release"]),
         ):
             record = self.run(name, [self.moon, *args], 0, "moon")
-        candidates = [ROOT / "_build/native/release/build/cmd/main" / name for name in ("main.exe", "main")]
+        candidates = [ROOT / "_build/native/release/build/cmd/moonvigil" / name for name in ("moonvigil.exe", "moonvigil")]
         self.binary = next((path for path in candidates if path.is_file()), None)
         self.check(record, "native release executable exists", self.binary is not None)
         return record["actual_exit"] == 0 and self.binary is not None
