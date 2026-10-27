@@ -175,6 +175,7 @@ pub struct PackageImport {
   scope : DependencyScope
   source : String
 } derive(Eq, ToJson, @debug.Debug)
+pub fn PackageImport::PackageImport(package_name~ : String, alias_name~ : String, scope~ : DependencyScope, source~ : String) -> Self
 
 pub struct PolicyEvaluation {
   report : ScanReport

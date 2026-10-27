@@ -22,6 +22,16 @@ pub struct PackageImport {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub fn PackageImport::PackageImport(
+  package_name~ : String,
+  alias_name~ : String,
+  scope~ : DependencyScope,
+  source~ : String,
+) -> PackageImport {
+  { package_name, alias_name, scope, source, }
+}
+
+///|
 priv enum ManifestToken {
   Word(String)
   Literal(String)
@@ -34,15 +44,24 @@ priv enum ManifestToken {
 }
 
 ///|
+priv struct LocatedManifestToken {
+  token : ManifestToken
+  line : Int
+}
+
+///|
 priv struct ManifestEntry {
   value : String
   alias_name : String
+  line : Int
 }
 
 ///|
 priv struct ManifestImportBlock {
   entries : Array[ManifestEntry]
   scope : String
+  has_scope : Bool
+  line : Int
 }
 
 ///|
@@ -62,13 +81,34 @@ pub fn parse_moon_mod(
   let blocks = parse_import_blocks(text, source~)
   let dependencies : Array[Dependency] = []
   for block in blocks {
+    if block.has_scope {
+      raise InvalidManifest(
+        source~,
+        line=block.line,
+        reason="module dependencies cannot have a package import scope",
+      )
+    }
     for entry in block.entries {
+      if entry.alias_name != "" {
+        raise InvalidManifest(
+          source~,
+          line=entry.line,
+          reason="module dependencies cannot have a package alias",
+        )
+      }
       let pieces = entry.value.split("@").to_array()
       let name = pieces[0].to_owned()
       let version = if pieces.length() > 1 { pieces[1].to_owned() } else { "" }
-      if name != "" {
-        dependencies.push(Dependency(name~, version~, source~))
+      if pieces.length() > 2 ||
+        !valid_import_path(name) ||
+        (pieces.length() == 2 && version == "") {
+        raise InvalidManifest(
+          source~,
+          line=entry.line,
+          reason="invalid module dependency: \{entry.value}",
+        )
       }
+      dependencies.push(Dependency(name~, version~, source~))
     }
   }
   dependencies
@@ -85,14 +125,19 @@ pub fn parse_moon_pkg(
   for block in blocks {
     let scope = dependency_scope(block.scope)
     for entry in block.entries {
-      if entry.value != "" {
-        let alias_name = if entry.alias_name != "" {
-          entry.alias_name
-        } else {
-          entry.value.split("/").to_array().last().unwrap_or("").to_owned()
-        }
-        imports.push({ package_name: entry.value, alias_name, scope, source, })
+      if !valid_import_path(entry.value) {
+        raise InvalidManifest(
+          source~,
+          line=entry.line,
+          reason="invalid package import: \{entry.value}",
+        )
       }
+      let alias_name = if entry.alias_name != "" {
+        entry.alias_name
+      } else {
+        entry.value.split("/").to_array().last().unwrap_or("").to_owned()
+      }
+      imports.push({ package_name: entry.value, alias_name, scope, source, })
     }
   }
   imports
@@ -108,8 +153,8 @@ pub fn apply_package_imports(
   imports : Array[PackageImport],
 ) -> Array[Dependency] {
   dependencies.map(fn(dependency) {
-    let scopes : Array[DependencyScope] = []
-    let aliases : Array[String] = []
+    let scopes = merge_scopes(dependency.scopes, [])
+    let aliases = merge_strings(dependency.aliases, [])
     for package_import in imports {
       match matching_module(dependencies, package_import.package_name) {
         Some(name) if name == dependency.name => {
@@ -130,7 +175,7 @@ pub fn apply_package_imports(
       version=dependency.version,
       source=dependency.source,
       aliases~,
-      scopes~,
+      scopes=merge_scopes(scopes, []),
     )
   })
 }
@@ -183,64 +228,120 @@ fn parse_import_blocks(
   let blocks : Array[ManifestImportBlock] = []
   let mut index = 0
   while index < tokens.length() {
-    match tokens[index] {
+    match tokens[index].token {
       Word(word) if word == "import" => {
         let opening = skip_newlines(tokens, index + 1)
-        if opening < tokens.length() && tokens[opening] is LeftBrace {
+        if opening < tokens.length() && tokens[opening].token is LeftBrace {
           let entries : Array[ManifestEntry] = []
-          let mut cursor = opening + 1
+          let mut cursor = skip_newlines(tokens, opening + 1)
           let mut closed = false
           while cursor < tokens.length() && !closed {
-            match tokens[cursor] {
+            match tokens[cursor].token {
               RightBrace => {
                 closed = true
                 cursor += 1
               }
               Literal(value) => {
+                let entry_line = tokens[cursor].line
+                if value == "" {
+                  raise InvalidManifest(
+                    source~,
+                    line=entry_line,
+                    reason="empty import entry",
+                  )
+                }
                 cursor += 1
                 let after_value = skip_newlines(tokens, cursor)
                 let alias_name = if after_value < tokens.length() &&
-                  tokens[after_value] is At {
-                  match tokens.get(after_value + 1) {
-                    Some(Word(name)) => {
-                      cursor = after_value + 2
+                  tokens[after_value].token is At {
+                  let alias_index = skip_newlines(tokens, after_value + 1)
+                  match tokens.get(alias_index) {
+                    Some({ token: Word(name), .. }) if valid_import_alias(name) => {
+                      cursor = alias_index + 1
                       name
                     }
-                    _ => {
-                      cursor = after_value + 1
-                      ""
-                    }
+                    _ =>
+                      raise manifest_token_error(
+                        tokens,
+                        after_value,
+                        source~,
+                        reason="expected an alias after @",
+                      )
                   }
                 } else {
                   cursor = after_value
                   ""
                 }
-                entries.push({ value, alias_name, })
+                entries.push({ value, alias_name, line: entry_line, })
+                cursor = skip_newlines(tokens, cursor)
+                match tokens.get(cursor) {
+                  Some({ token: Comma, .. }) =>
+                    cursor = skip_newlines(tokens, cursor + 1)
+                  Some({ token: RightBrace, .. }) => ()
+                  None => ()
+                  _ =>
+                    raise manifest_token_error(
+                      tokens,
+                      cursor,
+                      source~,
+                      reason="expected a comma or } after import entry",
+                    )
+                }
               }
-              Comma | Other => cursor += 1
-              _ => cursor += 1
+              _ =>
+                raise manifest_token_error(
+                  tokens,
+                  cursor,
+                  source~,
+                  reason="expected a quoted import entry",
+                )
             }
           }
           if !closed {
             raise InvalidManifest(
               source~,
-              line=1,
+              line=tokens[opening].line,
               reason="unterminated import block",
             )
           }
           let after_block = skip_newlines(tokens, cursor)
-          let (scope, next_index) = match tokens.get(after_block) {
-            Some(Word(keyword)) if keyword == "for" =>
-              match tokens.get(after_block + 1) {
-                Some(Literal(value)) => (value, after_block + 2)
-                _ => ("runtime", after_block + 1)
+          let (scope, has_scope, next_index) = match tokens.get(after_block) {
+            Some({ token: Word(keyword), .. }) if keyword == "for" => {
+              let scope_index = skip_newlines(tokens, after_block + 1)
+              match tokens.get(scope_index) {
+                Some({ token: Literal(value), .. }) if value != "" =>
+                  (value, true, scope_index + 1)
+                _ =>
+                  raise manifest_token_error(
+                    tokens,
+                    after_block,
+                    source~,
+                    reason="expected a quoted scope after for",
+                  )
               }
-            _ => ("runtime", after_block)
+            }
+            _ => ("runtime", false, after_block)
           }
-          blocks.push({ entries, scope, })
+          match tokens.get(next_index) {
+            Some({ token: Newline, .. }) | None => ()
+            Some({ token: Word(keyword), .. }) if keyword != "for" => ()
+            _ =>
+              raise manifest_token_error(
+                tokens,
+                next_index,
+                source~,
+                reason="unexpected token after import block",
+              )
+          }
+          blocks.push({ entries, scope, has_scope, line: tokens[index].line, })
           index = next_index
         } else {
-          index = opening
+          raise manifest_token_error(
+            tokens,
+            index,
+            source~,
+            reason="expected { after import",
+          )
         }
       }
       _ => index += 1
@@ -250,9 +351,9 @@ fn parse_import_blocks(
 }
 
 ///|
-fn skip_newlines(tokens : Array[ManifestToken], start : Int) -> Int {
+fn skip_newlines(tokens : Array[LocatedManifestToken], start : Int) -> Int {
   let mut index = start
-  while index < tokens.length() && tokens[index] is Newline {
+  while index < tokens.length() && tokens[index].token is Newline {
     index += 1
   }
   index
@@ -262,9 +363,9 @@ fn skip_newlines(tokens : Array[ManifestToken], start : Int) -> Int {
 fn tokenize_manifest(
   text : String,
   source~ : String,
-) -> Array[ManifestToken] raise ManifestParseError {
+) -> Array[LocatedManifestToken] raise ManifestParseError {
   let chars = text.to_array()
-  let tokens : Array[ManifestToken] = []
+  let tokens : Array[LocatedManifestToken] = []
   let mut index = 0
   let mut line = 1
   while index < chars.length() {
@@ -297,16 +398,19 @@ fn tokenize_manifest(
         )
       }
     } else if char == '\n' {
-      tokens.push(Newline)
+      tokens.push({ token: Newline, line, })
       line += 1
       index += 1
     } else if char == '"' {
+      let string_line = line
       index += 1
       let value = StringBuilder()
+      value.write_char('"')
       let mut closed = false
       while index < chars.length() && !closed {
         match chars[index] {
           '"' => {
+            value.write_char('"')
             closed = true
             index += 1
           }
@@ -318,12 +422,8 @@ fn tokenize_manifest(
                 reason="unterminated string escape",
               )
             }
-            match chars[index + 1] {
-              '"' => value.write_char('"')
-              '\\' => value.write_char('\\')
-              'n' => value.write_char('\n')
-              other => value.write_char(other)
-            }
+            value.write_char('\\')
+            value.write_char(chars[index + 1])
             index += 2
           }
           '\n' =>
@@ -345,18 +445,37 @@ fn tokenize_manifest(
           reason="unterminated string literal",
         )
       }
-      tokens.push(Literal(value.to_string()))
+      // Manifest strings use JSON escapes, including Unicode and escaped '/'.
+      // Decode them once instead of dropping unknown escape characters.
+      let decoded = @json.parse(value.to_string()) catch {
+        _ =>
+          raise InvalidManifest(
+            source~,
+            line=string_line,
+            reason="invalid string literal",
+          )
+      }
+      match decoded {
+        String(value) =>
+          tokens.push({ token: Literal(value), line: string_line, })
+        _ =>
+          raise InvalidManifest(
+            source~,
+            line=string_line,
+            reason="invalid string literal",
+          )
+      }
     } else if char == '{' {
-      tokens.push(LeftBrace)
+      tokens.push({ token: LeftBrace, line, })
       index += 1
     } else if char == '}' {
-      tokens.push(RightBrace)
+      tokens.push({ token: RightBrace, line, })
       index += 1
     } else if char == '@' {
-      tokens.push(At)
+      tokens.push({ token: At, line, })
       index += 1
     } else if char == ',' {
-      tokens.push(Comma)
+      tokens.push({ token: Comma, line, })
       index += 1
     } else if char.is_whitespace() {
       index += 1
@@ -366,9 +485,9 @@ fn tokenize_manifest(
         word.write_char(chars[index])
         index += 1
       }
-      tokens.push(Word(word.to_string()))
+      tokens.push({ token: Word(word.to_string()), line, })
     } else {
-      tokens.push(Other)
+      tokens.push({ token: Other, line, })
       index += 1
     }
   }
@@ -381,4 +500,35 @@ fn is_identifier_char(char : Char) -> Bool {
     'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' => true
     _ => false
   }
+}
+
+///|
+fn valid_import_alias(value : String) -> Bool {
+  let chars = value.to_array()
+  chars.length() > 0 &&
+  (chars[0].is_ascii_alphabetic() || chars[0] == '_') &&
+  chars.all(is_identifier_char)
+}
+
+///|
+fn valid_import_path(value : String) -> Bool {
+  value != "" &&
+  !value
+  .to_array()
+  .any(fn(char) { char.is_whitespace() || char == '\\' || char == '@' }) &&
+  value.split("/").all(fn(part) { part != "" && part != "." && part != ".." })
+}
+
+///|
+fn manifest_token_error(
+  tokens : Array[LocatedManifestToken],
+  index : Int,
+  source~ : String,
+  reason~ : String,
+) -> ManifestParseError {
+  let line = match tokens.get(index) {
+    Some(token) => token.line
+    None => 1
+  }
+  InvalidManifest(source~, line~, reason~)
 }

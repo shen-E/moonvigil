@@ -74,7 +74,16 @@ pub fn inventory_from_dependencies(
           scopes~,
         )
       }
-      None => normalized.push(dependency)
+      None =>
+        normalized.push(
+          Dependency(
+            name=dependency.name,
+            version=dependency.version,
+            source=dependency.source,
+            aliases=merge_strings([], dependency.aliases),
+            scopes=merge_scopes([], dependency.scopes),
+          ),
+        )
     }
   }
   normalized.sort_by(dependency_compare)
@@ -119,13 +128,8 @@ fn merge_scopes(
   right : Array[DependencyScope],
 ) -> Array[DependencyScope] {
   let result : Array[DependencyScope] = []
-  for scope in left {
-    if !result.any(fn(existing) { existing == scope }) {
-      result.push(scope)
-    }
-  }
-  for scope in right {
-    if !result.any(fn(existing) { existing == scope }) {
+  for scope in [Runtime, Test, WhiteboxTest, Other] {
+    if left.contains(scope) || right.contains(scope) {
       result.push(scope)
     }
   }
@@ -254,7 +258,12 @@ pub fn parse_manifest(
         match value {
           String(version) =>
             result.push({ name, version, source, aliases: [], scopes: [], })
-          _ => ()
+          _ =>
+            raise ManifestParseError::InvalidManifest(
+              source~,
+              line=1,
+              reason="dependency \{name} must declare a string version",
+            )
         }
       }
     _ => ()
@@ -536,7 +545,7 @@ fn sarif_result(finding : Finding) -> Json {
       Json::object({
         "physicalLocation": Json::object({
           "artifactLocation": Json::object({
-            "uri": Json::string(finding.dependency.source),
+            "uri": Json::string(sarif_artifact_uri(finding.dependency.source)),
           }),
         }),
       }),
@@ -581,11 +590,77 @@ fn add_sarif_rule(
       }),
       "fullDescription": Json::object({ "text": Json::string(advisory.summary) }),
     }
-    if advisory.references.length() > 0 {
-      rule["helpUri"] = Json::string(advisory.references[0])
+    for reference in advisory.references {
+      if is_sarif_help_reference(reference) {
+        rule["helpUri"] = Json::string(reference.trim().to_owned())
+        break
+      }
     }
     rules.push(Json::object(rule))
   }
+}
+
+///|
+// Keep optional help links within the ordinary HTTP URI subset. Every original
+// reference remains available in result properties, including other URL forms.
+fn is_sarif_help_reference(reference : String) -> Bool {
+  if !is_http_reference(reference) {
+    return false
+  }
+  let uri = reference.trim().to_owned()
+  let rest = uri.split("://").to_array().last().unwrap_or("").to_owned()
+  let authority = rest.split("/").to_array()[0].to_owned()
+  let authority = authority.split("?").to_array()[0].to_owned()
+  let authority = authority.split("#").to_array()[0].to_owned()
+  if authority.contains("@") {
+    return false
+  }
+  let chars = uri.to_array()
+  let mut fragment = false
+  let mut index = 0
+  while index < chars.length() {
+    match chars[index] {
+      '%' => {
+        if index + 2 >= chars.length() ||
+          !chars[index + 1:index + 3].all(fn(char) {
+            match char {
+              '0'..='9' | 'a'..='f' | 'A'..='F' => true
+              _ => false
+            }
+          }) {
+          return false
+        }
+        index += 3
+        continue
+      }
+      '#' if !fragment => fragment = true
+      'a'..='z'
+      | 'A'..='Z'
+      | '0'..='9'
+      | '-'
+      | '.'
+      | '_'
+      | '~'
+      | ':'
+      | '/'
+      | '?'
+      | '@'
+      | '!'
+      | '$'
+      | '&'
+      | '\''
+      | '('
+      | ')'
+      | '*'
+      | '+'
+      | ','
+      | ';'
+      | '=' => ()
+      _ => return false
+    }
+    index += 1
+  }
+  true
 }
 
 ///|
@@ -599,22 +674,83 @@ fn match_status_name(status : FindingStatus) -> String {
 
 ///|
 pub fn sbom_json(dependencies : Array[Dependency]) -> String {
-  let components = dependencies.map(fn(dependency) {
+  let components = inventory_from_dependencies(dependencies).dependencies.map(fn(
+    dependency,
+  ) {
+    let package_name = percent_encode(dependency.name, allow_slash=true)
+    let version = if dependency.version == "" {
+      ""
+    } else {
+      "@\{percent_encode(dependency.version)}"
+    }
     Json::object({
       "type": Json::string("library"),
       "name": Json::string(dependency.name),
       "version": Json::string(dependency.version),
-      "purl": Json::string(
-        "pkg:moonbit/\{dependency.name}@\{dependency.version}",
-      ),
+      "purl": Json::string("pkg:moonbit/\{package_name}\{version}"),
       "properties": Json::array(dependency_properties(dependency)),
     })
   })
   Json::object({
     "bomFormat": Json::string("CycloneDX"),
     "specVersion": Json::string("1.5"),
+    "version": Json::number(1),
     "components": Json::array(components),
   }).stringify(indent=2)
+}
+
+///|
+fn sarif_artifact_uri(source : String) -> String {
+  let path = source.replace_all(old="\\", new="/")
+  if path.length() >= 3 && path[1] == ':' && path[2] == '/' {
+    "file:///\{path[0:1]}:\{percent_encode(path[2:].to_owned(), allow_slash=true)}"
+  } else if path.has_prefix("//") {
+    "file:\{percent_encode(path, allow_slash=true)}"
+  } else if path.has_prefix("/") {
+    "file://\{percent_encode(path, allow_slash=true)}"
+  } else {
+    percent_encode(path, allow_slash=true)
+  }
+}
+
+///|
+// Escape URI data as UTF-8 octets, preserving path separators only when requested.
+fn percent_encode(value : String, allow_slash? : Bool = false) -> String {
+  let result = StringBuilder()
+  for char in value {
+    match char {
+      'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '.' | '_' | '~' =>
+        result.write_char(char)
+      '/' if allow_slash => result.write_char(char)
+      _ => {
+        let codepoint = char.to_int()
+        if codepoint < 0x80 {
+          write_percent_octet(result, codepoint)
+        } else if codepoint < 0x800 {
+          write_percent_octet(result, 0xC0 + (codepoint >> 6))
+          write_percent_octet(result, 0x80 + (codepoint & 0x3F))
+        } else if codepoint < 0x10000 {
+          write_percent_octet(result, 0xE0 + (codepoint >> 12))
+          write_percent_octet(result, 0x80 + ((codepoint >> 6) & 0x3F))
+          write_percent_octet(result, 0x80 + (codepoint & 0x3F))
+        } else {
+          write_percent_octet(result, 0xF0 + (codepoint >> 18))
+          write_percent_octet(result, 0x80 + ((codepoint >> 12) & 0x3F))
+          write_percent_octet(result, 0x80 + ((codepoint >> 6) & 0x3F))
+          write_percent_octet(result, 0x80 + (codepoint & 0x3F))
+        }
+      }
+    }
+  }
+  result.to_string()
+}
+
+///|
+fn write_percent_octet(result : StringBuilder, value : Int) -> Unit {
+  let hex = "0123456789ABCDEF".to_array()
+  result.write_char('%')
+  result.write_char(hex[value >> 4])
+  result.write_char(hex[value & 0x0F])
 }
 
 ///|

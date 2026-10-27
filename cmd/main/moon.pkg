@@ -1,11 +1,14 @@
 import {
   "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
   "moonbitlang/x/fs",
+  "moonbitlang/x/path",
   "moonvigil/moonvigil" @vigil,
 }
 
 pkgtype(kind: "executable")
 
 options(
-  "native-stub": [ "native_exit.c" ],
+  "native-stub": [ "native_exit.c", "native_paths.c" ],
 )

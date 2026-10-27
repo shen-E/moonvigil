@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
   pull_request:
 
 permissions:
@@ -19,249 +19,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
-      - name: Install MoonBit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install MoonBit (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s latest
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          "$HOME/.moon/bin/moon" version
           "$HOME/.moon/bin/moon" update
-      - name: Verify formatting
-        run: moon fmt --check
-      - name: Type check
-        run: moon check --target native --warn-list +73
-      - name: Test
-        run: moon test --target native
-      - name: Build
-        run: moon build --target native
-      - name: CLI end-to-end checks
-        shell: bash
+      - name: Install MoonBit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          output_dir="$(mktemp -d)"
-          set +e
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --format json --output "$output_dir/affected.json"
-          affected_exit=$?
-          moon run cmd/main --target native -- scan fixtures/unknown-version --db advisories.json --format sarif --output "$output_dir/unknown.sarif"
-          unknown_exit=$?
-          moon run cmd/main --target native -- scan fixtures/missing-import --db advisories.json
-          clean_exit=$?
-          moon run cmd/main --target native -- scan fixtures/not-found --db advisories.json
-          missing_path_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --format unsupported
-          invalid_format_exit=$?
-          moon run cmd/main --target native -- db validate fixtures/invalid-database.json
-          invalid_database_exit=$?
-          moon run cmd/main --target native -- db validate fixtures/invalid-severity.json
-          invalid_severity_exit=$?
-          moon run cmd/main --target native -- db validate fixtures/invalid-reference.json
-          invalid_reference_exit=$?
-          moon run cmd/main --target native -- db validate fixtures/empty-database.json
-          empty_database_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db fixtures/invalid-severity.json
-          invalid_scan_database_exit=$?
-          for database in fixtures/invalid-schema.json fixtures/duplicate-id.json fixtures/invalid-range.json fixtures/invalid-fixed-version.json; do
-            moon run cmd/main --target native -- db validate "$database"
-            test "$?" -eq 2
-          done
-          moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/demo.json"
-          demo_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --output "$output_dir"
-          output_error_exit=$?
-          moon run cmd/main --target native -- scan fixtures/modern-preferred --db fixtures/empty-database.json --format json --output "$output_dir/modern.json"
-          modern_manifest_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format json --output "$output_dir/suppressed.json"
-          exact_suppression_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format sarif --output "$output_dir/suppressed.sarif"
-          sarif_suppression_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/exact-suppression.json --format terminal > "$output_dir/suppressed.txt"
-          terminal_suppression_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/high-gate.json
-          high_gate_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on critical
-          critical_override_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on high
-          high_override_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/unmatched-suppression.json --format terminal > "$output_dir/unmatched.txt"
-          unmatched_suppression_exit=$?
-          moon run cmd/main --target native -- scan fixtures/unknown-version --db advisories.json --fail-on critical --format json --output "$output_dir/uncomparable-policy.json"
-          uncomparable_gate_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --format json --output "$output_dir/scope-runtime.json"
-          scope_runtime_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope wbtest --format terminal > "$output_dir/scope-terminal.txt"
-          scope_terminal_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope test,unclassified --format json --output "$output_dir/scope-test-unclassified.json"
-          scope_test_unclassified_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope all --format sarif --output "$output_dir/scope-all.sarif"
-          scope_all_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --policy fixtures/policy/runtime-only-v2.json --fail-on-scope test --format json --output "$output_dir/scope-policy-override.json"
-          scope_policy_override_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --fail-on critical --format json --output "$output_dir/scope-critical-threshold.json"
-          scope_critical_threshold_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --baseline fixtures/scopes/baseline-existing.json --fail-on-scope runtime --format json --output "$output_dir/scope-baseline-existing.json"
-          scope_baseline_existing_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,unknown
-          invalid_scope_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,runtime
-          duplicate_scope_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime,
-          empty_scope_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope runtime --fail-on-scope test
-          repeated_scope_option_exit=$?
-          moon run cmd/main --target native -- scan fixtures/scopes --db fixtures/scopes/advisories.json --fail-on-scope
-          missing_scope_value_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/expired-suppression.json
-          expired_policy_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy fixtures/policy/malformed.json
-          malformed_policy_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --format json --output "$output_dir/baseline-new.json"
-          baseline_new_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/affected.json --format sarif --output "$output_dir/baseline-existing.sarif"
-          baseline_existing_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/risk-changed.json --format json --output "$output_dir/baseline-updated.json"
-          baseline_updated_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/initial.json --format json --output "$output_dir/baseline-no-longer-detected.json"
-          baseline_stale_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline-output "$output_dir/generated-baseline.json" --format json --output "$output_dir/generated-report.json"
-          baseline_generation_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline "$output_dir/generated-baseline.json" --format json --output "$output_dir/repeated-baseline.json"
-          repeated_baseline_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/affected.json --policy fixtures/policy/high-gate.json --format json --output "$output_dir/baseline-policy-existing.json"
-          baseline_policy_existing_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/high-gate.json --format json --output "$output_dir/baseline-policy-new.json"
-          baseline_policy_new_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --fail-on critical --format json --output "$output_dir/baseline-critical-override.json"
-          baseline_critical_override_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/exact-suppression.json --format terminal > "$output_dir/baseline-suppressed-new.txt"
-          baseline_suppressed_new_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --policy fixtures/policy/exact-suppression.json --format sarif --output "$output_dir/baseline-suppressed-new.sarif"
-          baseline_suppressed_sarif_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/duplicate-entry.json
-          invalid_baseline_exit=$?
-          moon run cmd/main --target native -- baseline validate fixtures/baseline/initial.json > "$output_dir/baseline-v1.txt"
-          baseline_v1_validate_exit=$?
-          moon run cmd/main --target native -- baseline validate fixtures/baseline/valid-v2.json > "$output_dir/baseline-v2.txt"
-          baseline_v2_validate_exit=$?
-          moon run cmd/main --target native -- baseline validate fixtures/baseline/invalid-v2-range.json > "$output_dir/baseline-invalid.txt"
-          baseline_invalid_validate_exit=$?
-          moon run cmd/main --target native -- baseline validate fixtures/baseline/unsupported-version.json
-          baseline_unsupported_validate_exit=$?
-          moon run cmd/main --target native -- baseline validate fixtures/baseline/not-found.json
-          baseline_missing_validate_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --baseline fixtures/baseline/empty.json --baseline-output fixtures/baseline/empty.json
-          conflicting_baseline_paths_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --fail-on urgent
-          invalid_threshold_exit=$?
-          moon run cmd/main --target native -- scan fixtures/affected --db advisories.json --policy
-          missing_policy_value_exit=$?
-          set -e
-          test "$affected_exit" -eq 1
-          test "$unknown_exit" -eq 0
-          test "$clean_exit" -eq 0
-          test "$missing_path_exit" -eq 2
-          test "$invalid_format_exit" -eq 2
-          test "$invalid_database_exit" -eq 2
-          test "$invalid_severity_exit" -eq 2
-          test "$invalid_reference_exit" -eq 2
-          test "$empty_database_exit" -eq 0
-          test "$invalid_scan_database_exit" -eq 2
-          test "$demo_exit" -eq 1
-          test "$output_error_exit" -eq 2
-          test "$modern_manifest_exit" -eq 0
-          test "$exact_suppression_exit" -eq 0
-          test "$sarif_suppression_exit" -eq 0
-          test "$terminal_suppression_exit" -eq 0
-          test "$high_gate_exit" -eq 1
-          test "$critical_override_exit" -eq 0
-          test "$high_override_exit" -eq 1
-          test "$unmatched_suppression_exit" -eq 1
-          test "$uncomparable_gate_exit" -eq 0
-          test "$scope_runtime_exit" -eq 1
-          test "$scope_terminal_exit" -eq 1
-          test "$scope_test_unclassified_exit" -eq 1
-          test "$scope_all_exit" -eq 1
-          test "$scope_policy_override_exit" -eq 1
-          test "$scope_critical_threshold_exit" -eq 0
-          test "$scope_baseline_existing_exit" -eq 0
-          test "$invalid_scope_exit" -eq 2
-          test "$duplicate_scope_exit" -eq 2
-          test "$empty_scope_exit" -eq 2
-          test "$repeated_scope_option_exit" -eq 2
-          test "$missing_scope_value_exit" -eq 2
-          test "$expired_policy_exit" -eq 2
-          test "$malformed_policy_exit" -eq 2
-          test "$baseline_new_exit" -eq 1
-          test "$baseline_existing_exit" -eq 0
-          test "$baseline_updated_exit" -eq 1
-          test "$baseline_stale_exit" -eq 1
-          test "$baseline_generation_exit" -eq 1
-          test "$repeated_baseline_exit" -eq 0
-          test "$baseline_policy_existing_exit" -eq 0
-          test "$baseline_policy_new_exit" -eq 1
-          test "$baseline_critical_override_exit" -eq 0
-          test "$baseline_suppressed_new_exit" -eq 0
-          test "$baseline_suppressed_sarif_exit" -eq 0
-          test "$invalid_baseline_exit" -eq 2
-          test "$baseline_v1_validate_exit" -eq 0
-          test "$baseline_v2_validate_exit" -eq 0
-          test "$baseline_invalid_validate_exit" -eq 2
-          test "$baseline_unsupported_validate_exit" -eq 2
-          test "$baseline_missing_validate_exit" -eq 2
-          test "$conflicting_baseline_paths_exit" -eq 2
-          test "$invalid_threshold_exit" -eq 2
-          test "$missing_policy_value_exit" -eq 2
-          test -s "$output_dir/affected.json"
-          test -s "$output_dir/unknown.sarif"
-          test -s "$output_dir/demo.json"
-          test -s "$output_dir/modern.json"
-          grep -q '"version": "1.2.3"' "$output_dir/modern.json"
-          ! grep -q '"version": "9.9.9"' "$output_dir/modern.json"
-          grep -q '"source": "moon.mod"' "$output_dir/modern.json"
-          grep -q '"aliases": \[' "$output_dir/modern.json"
-          grep -q '"test"' "$output_dir/modern.json"
-          test -s "$output_dir/suppressed.json"
-          test -s "$output_dir/suppressed.sarif"
-          grep -q '"schema_version": "6"' "$output_dir/suppressed.json"
-          grep -q '"schema_version": "6"' "$output_dir/scope-runtime.json"
-          test "$(grep -c '"id": "MV-SCOPE-' "$output_dir/scope-runtime.json")" -eq 6
-          grep -q '"scope_excluded_findings": 4' "$output_dir/scope-runtime.json"
-          grep -q '"fail_on_scopes": \[' "$output_dir/scope-runtime.json"
-          grep -q 'scopes wbtest; 1 blocking, 5 out of scope' "$output_dir/scope-terminal.txt"
-          grep -q '"scopeExcludedFindings": 0' "$output_dir/scope-all.sarif"
-          grep -q '"failOnScopes": \[' "$output_dir/scope-all.sarif"
-          test "$(grep -c '"ruleId": "MV-SCOPE-' "$output_dir/scope-all.sarif")" -eq 6
-          grep -q '"fail_on_scopes": \[' "$output_dir/scope-policy-override.json"
-          grep -q '"blocking_findings": 2' "$output_dir/scope-policy-override.json"
-          grep -q '"blocking_findings": 0' "$output_dir/scope-baseline-existing.json"
-          grep -q '"baselineState": "unchanged"' "$output_dir/baseline-existing.sarif"
-          grep -q '"baseline_status": "Updated"' "$output_dir/baseline-updated.json"
-          grep -q '"updated_findings": 1' "$output_dir/baseline-updated.json"
-          grep -q '"no_longer_detected"' "$output_dir/baseline-no-longer-detected.json"
-          grep -q '"MV-BASELINE-0001"' "$output_dir/baseline-no-longer-detected.json"
-          grep -q '"baseline_status": "New"' "$output_dir/baseline-new.json"
-          grep -q 'valid baseline v1: 1 entries' "$output_dir/baseline-v1.txt"
-          grep -q 'no advisory risk evidence' "$output_dir/baseline-v1.txt"
-          grep -q 'valid baseline v2: 1 entries' "$output_dir/baseline-v2.txt"
-          grep -q 'baseline entry #0 field affected' "$output_dir/baseline-invalid.txt"
-          grep -q '"MOONVIGIL-2026-0001"' "$output_dir/generated-baseline.json"
-          grep -q '"baseline_status": "Existing"' "$output_dir/repeated-baseline.json"
-          grep -q '"blocking_findings": 0' "$output_dir/baseline-policy-existing.json"
-          grep -q '"blocking_findings": 1' "$output_dir/baseline-policy-new.json"
-          grep -q '"blocking_findings": 0' "$output_dir/baseline-critical-override.json"
-          grep -q '"baseline_status": "Existing"' "$output_dir/baseline-policy-existing.json"
-          grep -q '"baseline_status": "New"' "$output_dir/baseline-policy-new.json"
-          grep -q '\[suppressed, new\]' "$output_dir/baseline-suppressed-new.txt"
-          grep -q '"baselineState": "new"' "$output_dir/baseline-suppressed-new.sarif"
-          grep -q '"kind": "external"' "$output_dir/baseline-suppressed-new.sarif"
-          grep -q '"suppressed_findings": 1' "$output_dir/suppressed.json"
-          grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.json"
-          grep -q '\[suppressed\]' "$output_dir/suppressed.txt"
-          grep -q 'Temporary compatibility exception for the policy fixture.' "$output_dir/suppressed.txt"
-          grep -q '"kind": "external"' "$output_dir/suppressed.sarif"
-          grep -q '"status": "accepted"' "$output_dir/suppressed.sarif"
-          grep -q '"justification": "Temporary compatibility exception for the policy fixture."' "$output_dir/suppressed.sarif"
-          grep -q 'Warning: suppression did not match' "$output_dir/unmatched.txt"
-          grep -q '"status": "Uncomparable"' "$output_dir/uncomparable-policy.json"
-          moon run cmd/main --target native -- sbom fixtures/affected --output "$output_dir/components.json"
-          test -s "$output_dir/components.json"
+          Invoke-WebRequest https://cli.moonbitlang.com/install/powershell.ps1 -OutFile "$env:RUNNER_TEMP/install-moonbit.ps1"
+          & "$env:RUNNER_TEMP/install-moonbit.ps1"
+          "$env:USERPROFILE/.moon/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$env:USERPROFILE/.moon/bin/moon.exe" update
+      - name: Run acceptance checks
+        run: python scripts/acceptance.py
+      - name: Preserve acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}
+          path: .acceptance-output/
+          include-hidden-files: true
+          if-no-files-found: warn

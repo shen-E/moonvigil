@@ -33,11 +33,13 @@ if [ "$scan_exit" -ne 1 ]; then
   exit 1
 fi
 
+scan_exit=0
 moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format json --output "$output_dir/report.json" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected JSON scan output to exit with 1." >&2
   exit 1
 fi
+scan_exit=0
 moon run cmd/main --target native -- scan demo/project --db demo/advisories.json --format sarif --output "$output_dir/report.sarif" || scan_exit=$?
 if [ "${scan_exit:-0}" -ne 1 ]; then
   echo "Expected SARIF scan output to exit with 1." >&2
