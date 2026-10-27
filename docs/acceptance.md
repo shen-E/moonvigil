@@ -53,21 +53,30 @@ failures are recorded as skipped checks rather than reported as passes.
 | Environment | MoonBit tests | Acceptance commands | Assertions | Skipped link checks |
 | --- | --- | --- | --- | --- |
 | Windows native | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
+| Ubuntu 24.04 under WSL2 | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
+| GitHub CI Ubuntu | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
+| GitHub CI macOS | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
+| GitHub CI Windows | 65 / 65 | 179 / 179 | 619 / 619 | 0 |
 
-The current run used `moon 0.1.20261023 (3778465)` and
-`moonc v0.10.17+d971670cd`. The same native behavior also passed these checks
-on Ubuntu 24.04 under WSL2 before the mechanical toolchain syntax update.
-The toolchain emits existing deprecation and
+The local run and [three-platform CI run](https://github.com/shen-E/moonvigil/actions/runs/40437944085)
+used `moon 0.1.20261023 (3778465)` and
+`moonc v0.10.17+d971670cd`. The toolchain emits existing deprecation and
 unqualified-test-import warnings; build and type checks complete with zero
 errors. CI records its installed toolchain in each run rather than assuming
 that the official `latest` installer will remain at this version.
 
-Six SARIF artifacts and one SBOM from the initial Windows run also passed the official
-SARIF 2.1.0 and CycloneDX 1.5 JSON schemas, including URI format checks, using
-Python `jsonschema 4.10.3`. The separate `schema-validation.json` evidence
+Six SARIF artifacts and one SBOM also passed the official SARIF 2.1.0 and
+CycloneDX 1.5 JSON schemas, including URI format checks, using Python
+`jsonschema 4.10.3`. The separate
+[`schema-validation.json`](schema-validation.json) evidence
 records schema source URLs, Git blob IDs, artifact SHA-256 hashes, and results.
 Schema validation was an additional verification step; the standard-library
 acceptance script checks report contents without installing that dependency.
+
+The WSL shell demo also completed with exit 0 using an isolated installation:
+its JSON report contains four dependencies, two affected findings, and one
+uncomparable finding; SARIF contains three results, and the SBOM contains all
+four dependency components.
 
 ## Implementation and boundaries
 

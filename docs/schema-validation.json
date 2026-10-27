@@ -1,0 +1,78 @@
+{
+  "validator": "Python jsonschema 4.10.3 with FormatChecker and rfc3986-validator 0.1.1",
+  "checks": [
+    {
+      "artifact": "sbom.json",
+      "artifact_sha256": "69fa5c4536914acb55e32ed088defcb519d68a29b0dcca84577433d02de7ad09",
+      "schema": "CycloneDX 1.5",
+      "schema_source": "https://github.com/CycloneDX/specification/blob/1.5/schema/bom-1.5.schema.json",
+      "schema_git_blob": "c149728127117c39317b795032ed6e9a92e2f950",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "baseline-existing.sarif",
+      "artifact_sha256": "c1d3322e97af791ea79a1221c0e33cfdab28b4d1803aff67558f7a35a785fbc4",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "baseline-suppressed.sarif",
+      "artifact_sha256": "c814de2f1b2bcd652fa65eeaf5716a41335110336cf4d23a1e927294ba02dc0f",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "demo.sarif",
+      "artifact_sha256": "6fa842100e35698890cfce01aef3bae13302a88fe547ec18376b00466ea73bcd",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "scope-all.sarif",
+      "artifact_sha256": "822e3b91aff734de419a09f87a71d0de38c45aa47a1a10755b3ae636635bf871",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "suppressed.sarif",
+      "artifact_sha256": "1923e1e3856dbc1ff6562e3c4d717f44938c17027cf3a2bd6cd332761c3c5536",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "artifact": "unknown.sarif",
+      "artifact_sha256": "74aca0748642cec35543e41073b1cafe2d54d4cb735d90477e846c17717e9bbe",
+      "schema": "SARIF 2.1.0",
+      "schema_source": "https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+      "schema_git_blob": "0f58372b548f60c84d20fca77687435e71b3b3a3",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "evidence": "Artifact SHA-256 hashes match the seven outputs previously checked against the official schemas.",
+  "source_commit": "c5b232cd51876637f90e22b881ffa89e5326650a",
+  "ci_run": "https://github.com/shen-E/moonvigil/actions/runs/40437944085",
+  "matching_ci_artifacts": [
+    "acceptance-ubuntu-latest",
+    "acceptance-macos-latest",
+    "acceptance-windows-latest"
+  ]
+}

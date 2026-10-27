@@ -5,14 +5,14 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 output_dir=${1:-"$(mktemp -d "${TMPDIR:-/tmp}/moonvigil-demo.XXXXXX")"}
 mkdir -p "$output_dir"
 
-export PATH="$HOME/.moon/bin:$PATH"
+export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
 if ! command -v moon >/dev/null 2>&1; then
   echo "MoonBit is not installed; preparing the build toolchain."
   installer=$(mktemp "${TMPDIR:-/tmp}/moonbit-install.XXXXXX.sh")
   trap 'rm -f "$installer"' EXIT
   curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o "$installer"
   bash "$installer"
-  export PATH="$HOME/.moon/bin:$PATH"
+  export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
   moon update
 fi
 
