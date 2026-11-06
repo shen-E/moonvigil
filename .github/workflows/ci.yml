@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 4 * * 1'
 
 permissions:
   contents: read
@@ -42,6 +45,12 @@ jobs:
           & "$env:USERPROFILE/.moon/bin/moon.exe" update
       - name: Run acceptance checks
         run: python scripts/acceptance.py
+      - name: Check warnings and generated interfaces
+        shell: bash
+        run: |
+          moon check --target native --deny-warn
+          moon info --target native
+          git diff --ignore-space-at-eol --exit-code
       - name: Preserve acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

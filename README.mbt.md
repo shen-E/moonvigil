@@ -18,24 +18,31 @@ aliases do not change the canonical module name.
 Add the library to a MoonBit module:
 
 ```sh
-moon add shen-E/moonvigil@0.2.0
+moon add shen-E/moonvigil@0.2.1
 ```
 
 Import `shen-E/moonvigil` in the consuming package's `moon.pkg`. The native
 command can be installed independently:
 
 ```sh
-moon install shen-E/moonvigil/cmd/moonvigil@0.2.0
+moon install shen-E/moonvigil/cmd/moonvigil@0.2.1
 moonvigil --version
 moonvigil scan ./your-project --db ./advisories.json
 ```
 
 The advisory database is an explicit local input. Download or maintain it
 separately; installing the command does not update vulnerability data.
+The bundled `advisories.json` contains a synthetic example, not a maintained
+catalog of real vulnerabilities. Record the source and refresh date of the
+database used in CI. A clean result applies to that database's coverage.
+
+[`examples/library`](examples/library/consumer_test.mbt) contains an independent
+library consumer. The `Registry consumers` workflow tests a published version
+in a fresh module and installs its CLI on Linux, macOS, and Windows.
 
 ## Run from source
 
-The checked native toolchain is `moon 0.1.20261023` / `moonc v0.10.17`.
+The checked native toolchain is `moon 0.1.20261104` / `moonc v0.10.20`.
 For the full build, regression, and CLI
 acceptance checks on Windows, Linux, or macOS, also install Python 3.8 or newer:
 

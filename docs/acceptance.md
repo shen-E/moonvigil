@@ -4,6 +4,11 @@ MoonVigil 0.2.0 continues the offline scanner described in the original
 proposal-stage README. It retains the existing MoonBit library/native CLI
 layout, local advisory format, policy and baseline APIs, and 0/1/2 exit codes.
 
+Version 0.2.1 retains those behaviors and updates the toolchain and dependency.
+The Windows run with `moon 0.1.20261104` / `moonc v0.10.20` passed 65 native
+tests and all 179 commands / 619 assertions, with no skipped link checks.
+The earlier three-platform evidence below remains a record of version 0.2.0.
+
 ## Official criteria
 
 This project belongs to the September 2026 MoonBit hackathon. The applicable
@@ -21,7 +26,7 @@ are pinned because the live site changes for later events.
 
 ## Reproduce
 
-Install the native MoonBit toolchain (`moon 0.1.20261023` / `moonc v0.10.17`
+Install the native MoonBit toolchain (`moon 0.1.20261104` / `moonc v0.10.20`
 was checked) and Python 3.8 or newer, then run from the repository root:
 
 ```sh

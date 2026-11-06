@@ -58,30 +58,47 @@ pub fn validate_database(AdvisoryDatabase) -> Unit raise
 pub fn validate_policy(ScanPolicy, today~ : String) -> Unit raise
 
 // Errors
+#derive(Eq, @debug.Debug)
 pub(all) suberror BaselineValidationError {
   UnsupportedBaselineSchemaVersion(String)
   InvalidBaselineField(field~ : String, reason~ : String)
   InvalidBaselineEntry(index~ : Int32, field~ : String, reason~ : String)
   DuplicateBaselineEntry(index~ : Int32, advisory_id~ : String)
-} derive(Eq, @debug.Debug)
+}
+pub fn BaselineValidationError::equal(Self, Self) -> Bool
+pub fn BaselineValidationError::not_equal(Self, Self) -> Bool
+pub fn BaselineValidationError::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub(all) suberror DatabaseValidationError {
   UnsupportedSchemaVersion(String)
   InvalidDatabaseField(field~ : String, reason~ : String)
   InvalidAdvisory(index~ : Int32, id~ : String, field~ : String, reason~ : String)
   MultipleInvalidAdvisories(Array[DatabaseIssue])
-} derive(Eq, @debug.Debug)
+}
+pub fn DatabaseValidationError::equal(Self, Self) -> Bool
+pub fn DatabaseValidationError::not_equal(Self, Self) -> Bool
+pub fn DatabaseValidationError::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub(all) suberror ManifestParseError {
   InvalidManifest(source~ : String, line~ : Int32, reason~ : String)
-} derive(Eq, @debug.Debug)
+}
+pub fn ManifestParseError::equal(Self, Self) -> Bool
+pub fn ManifestParseError::not_equal(Self, Self) -> Bool
+pub fn ManifestParseError::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub(all) suberror PolicyValidationError {
   InvalidPolicyField(field~ : String, reason~ : String)
   ExpiredSuppression(index~ : Int32, advisory_id~ : String, expires_on~ : String)
-} derive(Eq, @debug.Debug)
+}
+pub fn PolicyValidationError::equal(Self, Self) -> Bool
+pub fn PolicyValidationError::not_equal(Self, Self) -> Bool
+pub fn PolicyValidationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+#derive(Eq, @debug.Debug, @json.FromJson, @json.ToJson)
 pub struct Advisory {
   id : String
   package_name : String
@@ -90,13 +107,25 @@ pub struct Advisory {
   summary : String
   fixed_version : String
   references : Array[String]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+}
+pub fn Advisory::equal(Self, Self) -> Bool
+pub fn Advisory::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn Advisory::not_equal(Self, Self) -> Bool
+pub fn Advisory::to_json(Self) -> @json.Json
+pub fn Advisory::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.FromJson, @json.ToJson)
 pub struct AdvisoryDatabase {
   schema_version : String
   advisories : Array[Advisory]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+}
+pub fn AdvisoryDatabase::equal(Self, Self) -> Bool
+pub fn AdvisoryDatabase::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn AdvisoryDatabase::not_equal(Self, Self) -> Bool
+pub fn AdvisoryDatabase::to_json(Self) -> @json.Json
+pub fn AdvisoryDatabase::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.FromJson, @json.ToJson)
 pub struct BaselineEntry {
   advisory_id : String
   package_name : String
@@ -104,14 +133,25 @@ pub struct BaselineEntry {
   affected : String?
   severity : String?
   fixed_version : String?
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+}
+pub fn BaselineEntry::equal(Self, Self) -> Bool
+pub fn BaselineEntry::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn BaselineEntry::not_equal(Self, Self) -> Bool
+pub fn BaselineEntry::to_json(Self) -> @json.Json
+pub fn BaselineEntry::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub enum BaselineFindingStatus {
   New
   Existing
   Updated
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn BaselineFindingStatus::equal(Self, Self) -> Bool
+pub fn BaselineFindingStatus::not_equal(Self, Self) -> Bool
+pub fn BaselineFindingStatus::to_json(Self) -> @json.Json
+pub fn BaselineFindingStatus::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct BaselineSummary {
   snapshot_entries : Int32
   new_findings : Int32
@@ -119,69 +159,116 @@ pub struct BaselineSummary {
   updated_findings : Int32
   legacy_snapshot : Bool
   no_longer_detected : Array[BaselineEntry]
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn BaselineSummary::equal(Self, Self) -> Bool
+pub fn BaselineSummary::not_equal(Self, Self) -> Bool
+pub fn BaselineSummary::to_json(Self) -> @json.Json
+pub fn BaselineSummary::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub(all) struct DatabaseIssue {
   index : Int32
   id : String
   field : String
   reason : String
-} derive(Eq, @debug.Debug)
+}
+pub fn DatabaseIssue::equal(Self, Self) -> Bool
+pub fn DatabaseIssue::not_equal(Self, Self) -> Bool
+pub fn DatabaseIssue::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct Dependency {
   name : String
   version : String
   source : String
   aliases : Array[String]
   scopes : Array[DependencyScope]
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn Dependency::Dependency(name~ : String, version~ : String, source~ : String, aliases? : Array[String], scopes? : Array[DependencyScope]) -> Self
+pub fn Dependency::equal(Self, Self) -> Bool
+pub fn Dependency::not_equal(Self, Self) -> Bool
+pub fn Dependency::to_json(Self) -> @json.Json
+pub fn Dependency::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct DependencyConflict {
   name : String
   versions : Array[String]
   sources : Array[String]
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn DependencyConflict::equal(Self, Self) -> Bool
+pub fn DependencyConflict::not_equal(Self, Self) -> Bool
+pub fn DependencyConflict::to_json(Self) -> @json.Json
+pub fn DependencyConflict::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub(all) enum DependencyScope {
   Runtime
   Test
   WhiteboxTest
   Other
-} derive(Eq, @debug.Debug)
+}
+pub fn DependencyScope::equal(Self, Self) -> Bool
+pub fn DependencyScope::not_equal(Self, Self) -> Bool
+pub fn DependencyScope::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct Finding {
   dependency : Dependency
   advisory : Advisory
   status : FindingStatus
   suppression : PolicySuppression?
   baseline_status : BaselineFindingStatus?
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn Finding::equal(Self, Self) -> Bool
+pub fn Finding::not_equal(Self, Self) -> Bool
+pub fn Finding::to_json(Self) -> @json.Json
+pub fn Finding::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub enum FindingStatus {
   Affected
   NotAffected
   Uncomparable
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn FindingStatus::equal(Self, Self) -> Bool
+pub fn FindingStatus::not_equal(Self, Self) -> Bool
+pub fn FindingStatus::to_json(Self) -> @json.Json
+pub fn FindingStatus::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct Inventory {
   dependencies : Array[Dependency]
   conflicts : Array[DependencyConflict]
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn Inventory::equal(Self, Self) -> Bool
+pub fn Inventory::not_equal(Self, Self) -> Bool
+pub fn Inventory::to_json(Self) -> @json.Json
+pub fn Inventory::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct PackageImport {
   package_name : String
   alias_name : String
   scope : DependencyScope
   source : String
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn PackageImport::PackageImport(package_name~ : String, alias_name~ : String, scope~ : DependencyScope, source~ : String) -> Self
+pub fn PackageImport::equal(Self, Self) -> Bool
+pub fn PackageImport::not_equal(Self, Self) -> Bool
+pub fn PackageImport::to_json(Self) -> @json.Json
+pub fn PackageImport::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub struct PolicyEvaluation {
   report : ScanReport
   should_fail : Bool
-} derive(Eq, @debug.Debug)
+}
+pub fn PolicyEvaluation::equal(Self, Self) -> Bool
+pub fn PolicyEvaluation::not_equal(Self, Self) -> Bool
+pub fn PolicyEvaluation::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct PolicySummary {
   fail_on : String
   fail_on_scopes : Array[String]
@@ -189,28 +276,49 @@ pub struct PolicySummary {
   scope_excluded_findings : Int32
   suppressed_findings : Int32
   unmatched_suppressions : Array[PolicySuppression]
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn PolicySummary::equal(Self, Self) -> Bool
+pub fn PolicySummary::not_equal(Self, Self) -> Bool
+pub fn PolicySummary::to_json(Self) -> @json.Json
+pub fn PolicySummary::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct PolicySuppression {
   advisory_id : String
   package_name : String
   version : String
   reason : String
   expires_on : String
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn PolicySuppression::equal(Self, Self) -> Bool
+pub fn PolicySuppression::not_equal(Self, Self) -> Bool
+pub fn PolicySuppression::to_json(Self) -> @json.Json
+pub fn PolicySuppression::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.FromJson, @json.ToJson)
 pub struct ScanBaseline {
   schema_version : String
   entries : Array[BaselineEntry]
-} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+}
+pub fn ScanBaseline::equal(Self, Self) -> Bool
+pub fn ScanBaseline::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn ScanBaseline::not_equal(Self, Self) -> Bool
+pub fn ScanBaseline::to_json(Self) -> @json.Json
+pub fn ScanBaseline::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct ScanPolicy {
   schema_version : String
   fail_on : String
   fail_on_scopes : Array[String]
   suppressions : Array[PolicySuppression]
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn ScanPolicy::equal(Self, Self) -> Bool
+pub fn ScanPolicy::not_equal(Self, Self) -> Bool
+pub fn ScanPolicy::to_json(Self) -> @json.Json
+pub fn ScanPolicy::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub struct ScanReport {
   schema_version : String
   dependencies : Array[Dependency]
@@ -219,7 +327,11 @@ pub struct ScanReport {
   conflicts : Array[DependencyConflict]
   policy : PolicySummary?
   baseline : BaselineSummary?
-} derive(Eq, ToJson, @debug.Debug)
+}
+pub fn ScanReport::equal(Self, Self) -> Bool
+pub fn ScanReport::not_equal(Self, Self) -> Bool
+pub fn ScanReport::to_json(Self) -> @json.Json
+pub fn ScanReport::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

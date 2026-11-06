@@ -1,12 +1,13 @@
 ///|
 /// Offline dependency vulnerability matching for MoonBit projects.
+#derive(Debug, Eq, ToJson)
 pub struct Dependency {
   name : String
   version : String
   source : String
   aliases : Array[String]
   scopes : Array[DependencyScope]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub fn Dependency::Dependency(
@@ -21,18 +22,20 @@ pub fn Dependency::Dependency(
 
 ///|
 /// A declared module with multiple versions in the scanned project tree.
+#derive(Debug, Eq, ToJson)
 pub struct DependencyConflict {
   name : String
   versions : Array[String]
   sources : Array[String]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 /// A deterministic, de-duplicated dependency inventory.
+#derive(Debug, Eq, ToJson)
 pub struct Inventory {
   dependencies : Array[Dependency]
   conflicts : Array[DependencyConflict]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 /// Normalise declarations into a deterministic inventory.
@@ -193,6 +196,7 @@ fn lexicographic_compare(left : String, right : String) -> Int32 {
 }
 
 ///|
+#derive(Debug, Eq, ToJson, FromJson)
 pub struct Advisory {
   id : String
   package_name : String
@@ -201,31 +205,35 @@ pub struct Advisory {
   summary : String
   fixed_version : String
   references : Array[String]
-} derive(Debug, Eq, ToJson, FromJson)
+}
 
 ///|
+#derive(Debug, Eq, ToJson, FromJson)
 pub struct AdvisoryDatabase {
   schema_version : String
   advisories : Array[Advisory]
-} derive(Debug, Eq, ToJson, FromJson)
+}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub enum FindingStatus {
   Affected
   NotAffected
   Uncomparable
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub struct Finding {
   dependency : Dependency
   advisory : Advisory
   status : FindingStatus
   suppression : PolicySuppression?
   baseline_status : BaselineFindingStatus?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub struct ScanReport {
   schema_version : String
   dependencies : Array[Dependency]
@@ -234,7 +242,7 @@ pub struct ScanReport {
   conflicts : Array[DependencyConflict]
   policy : PolicySummary?
   baseline : BaselineSummary?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub fn parse_database(text : String) -> AdvisoryDatabase raise {
@@ -783,3 +791,81 @@ fn sarif_level(severity : String) -> String {
     _ => "note"
   }
 }
+
+///|
+pub extend Advisory with @debug.Debug::{to_repr}
+
+///|
+pub extend Advisory with @moonbitlang/core/json.FromJson::{from_json}
+
+///|
+pub extend Advisory with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend Advisory with Eq::{not_equal, equal}
+
+///|
+pub extend AdvisoryDatabase with @debug.Debug::{to_repr}
+
+///|
+pub extend AdvisoryDatabase with @moonbitlang/core/json.FromJson::{from_json}
+
+///|
+pub extend AdvisoryDatabase with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend AdvisoryDatabase with Eq::{not_equal, equal}
+
+///|
+pub extend Dependency with @debug.Debug::{to_repr}
+
+///|
+pub extend Dependency with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend Dependency with Eq::{not_equal, equal}
+
+///|
+pub extend DependencyConflict with @debug.Debug::{to_repr}
+
+///|
+pub extend DependencyConflict with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend DependencyConflict with Eq::{not_equal, equal}
+
+///|
+pub extend Finding with @debug.Debug::{to_repr}
+
+///|
+pub extend Finding with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend Finding with Eq::{not_equal, equal}
+
+///|
+pub extend FindingStatus with @debug.Debug::{to_repr}
+
+///|
+pub extend FindingStatus with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend FindingStatus with Eq::{not_equal, equal}
+
+///|
+pub extend Inventory with @debug.Debug::{to_repr}
+
+///|
+pub extend Inventory with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend Inventory with Eq::{not_equal, equal}
+
+///|
+pub extend ScanReport with @debug.Debug::{to_repr}
+
+///|
+pub extend ScanReport with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend ScanReport with Eq::{not_equal, equal}

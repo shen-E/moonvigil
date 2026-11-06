@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+- Update formatting and generated interfaces for MoonBit 0.10.20, qualify test
+  imports, and preserve trait methods with explicit extensions.
+- Upgrade `moonbitlang/x` from 0.5.5 to 0.5.7.
+- Repeat native checks weekly on Linux, macOS, and Windows, and provide a
+  separate registry workflow for library and installed CLI checks.
+- Add a standalone library consumer example. Scan behavior, exit codes, and
+  report schemas remain unchanged.
+- Declare the CLI's native-only target so portable library consumers can
+  select their backend without compiling the C process and path bridges.
+
 ## 0.2.0
 
 - Added a cross-platform acceptance command that checks build steps, CLI exit

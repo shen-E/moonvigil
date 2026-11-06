@@ -1,5 +1,6 @@
 ///|
 /// A portable baseline key. It deliberately contains no project paths.
+#derive(Debug, Eq, ToJson, FromJson)
 pub struct BaselineEntry {
   advisory_id : String
   package_name : String
@@ -7,25 +8,28 @@ pub struct BaselineEntry {
   affected : String?
   severity : String?
   fixed_version : String?
-} derive(Debug, Eq, ToJson, FromJson)
+}
 
 ///|
 /// A validated, versioned snapshot of affected direct dependencies.
+#derive(Debug, Eq, ToJson, FromJson)
 pub struct ScanBaseline {
   schema_version : String
   entries : Array[BaselineEntry]
-} derive(Debug, Eq, ToJson, FromJson)
+}
 
 ///|
 /// Whether an affected finding is new or already present in the supplied snapshot.
+#derive(Debug, Eq, ToJson)
 pub enum BaselineFindingStatus {
   New
   Existing
   Updated
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 /// Summary of a baseline comparison, including keys no longer observed.
+#derive(Debug, Eq, ToJson)
 pub struct BaselineSummary {
   snapshot_entries : Int32
   new_findings : Int32
@@ -33,15 +37,16 @@ pub struct BaselineSummary {
   updated_findings : Int32
   legacy_snapshot : Bool
   no_longer_detected : Array[BaselineEntry]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
+#derive(Debug, Eq)
 pub(all) suberror BaselineValidationError {
   UnsupportedBaselineSchemaVersion(String)
   InvalidBaselineField(field~ : String, reason~ : String)
   InvalidBaselineEntry(index~ : Int32, field~ : String, reason~ : String)
   DuplicateBaselineEntry(index~ : Int32, advisory_id~ : String)
-} derive(Debug, Eq)
+}
 
 ///|
 /// Parse and strictly validate a schema-v1 or schema-v2 baseline snapshot.
@@ -394,3 +399,51 @@ fn baseline_entry_risk_matches_finding(
     _ => true
   }
 }
+
+///|
+pub extend BaselineEntry with @debug.Debug::{to_repr}
+
+///|
+pub extend BaselineEntry with @moonbitlang/core/json.FromJson::{from_json}
+
+///|
+pub extend BaselineEntry with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend BaselineEntry with Eq::{not_equal, equal}
+
+///|
+pub extend BaselineFindingStatus with @debug.Debug::{to_repr}
+
+///|
+pub extend BaselineFindingStatus with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend BaselineFindingStatus with Eq::{not_equal, equal}
+
+///|
+pub extend BaselineSummary with @debug.Debug::{to_repr}
+
+///|
+pub extend BaselineSummary with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend BaselineSummary with Eq::{not_equal, equal}
+
+///|
+pub extend BaselineValidationError with @debug.Debug::{to_repr}
+
+///|
+pub extend BaselineValidationError with Eq::{not_equal, equal}
+
+///|
+pub extend ScanBaseline with @debug.Debug::{to_repr}
+
+///|
+pub extend ScanBaseline with @moonbitlang/core/json.FromJson::{from_json}
+
+///|
+pub extend ScanBaseline with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend ScanBaseline with Eq::{not_equal, equal}

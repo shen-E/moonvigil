@@ -1,38 +1,41 @@
 ///|
 test "inventory canonicalizes aliases and scopes independently of input order" {
-  let runtime = Dependency(
+  let runtime = @moonvigil.Dependency(
     name="example/package",
     version="1.0.0",
     source="b/moon.mod",
     aliases=["z", "a", "a", ""],
     scopes=[Other, Runtime, Runtime],
   )
-  let tests = Dependency(
+  let tests = @moonvigil.Dependency(
     name="example/package",
     version="1.0.0",
     source="a/moon.mod",
     aliases=["test"],
     scopes=[WhiteboxTest, Test],
   )
-  let forward = inventory_from_dependencies([runtime, tests])
-  let reverse = inventory_from_dependencies([tests, runtime])
+  let forward = @moonvigil.inventory_from_dependencies([runtime, tests])
+  let reverse = @moonvigil.inventory_from_dependencies([tests, runtime])
   assert_eq(forward, reverse)
   assert_eq(forward.dependencies[0].aliases, ["a", "test", "z"])
   assert_eq(forward.dependencies[0].scopes, [Runtime, Test, WhiteboxTest, Other])
-  let single = inventory_from_dependencies([runtime]).dependencies[0]
+  let single = @moonvigil.inventory_from_dependencies([runtime]).dependencies[0]
   assert_eq(single.aliases, ["a", "z"])
   assert_eq(single.scopes, [Runtime, Other])
-  assert_eq(sbom_json([runtime, tests]), sbom_json([tests, runtime]))
+  assert_eq(
+    @moonvigil.sbom_json([runtime, tests]),
+    @moonvigil.sbom_json([tests, runtime]),
+  )
 }
 
 ///|
 test "SBOM includes its required document version and unique components" {
-  let dependency = Dependency(
+  let dependency = @moonvigil.Dependency(
     name="example/package",
     version="1.0.0",
     source="moon.mod",
   )
-  let bom = @json.parse(sbom_json([dependency, dependency]))
+  let bom = @json.parse(@moonvigil.sbom_json([dependency, dependency]))
   guard bom is Object(fields) else { fail("expected a BOM object") }
   assert_eq(fields.get("bomFormat"), Some(Json::string("CycloneDX")))
   assert_eq(fields.get("specVersion"), Some(Json::string("1.5")))
@@ -41,7 +44,7 @@ test "SBOM includes its required document version and unique components" {
     fail("expected components")
   }
   assert_eq(components.length(), 1)
-  let empty = @json.parse(sbom_json([]))
+  let empty = @json.parse(@moonvigil.sbom_json([]))
   guard empty is Object(empty_fields) else { fail("expected an empty BOM") }
   assert_eq(empty_fields.get("version"), Some(Json::number(1)))
   assert_eq(empty_fields.get("components"), Some(Json::array([])))
@@ -50,7 +53,7 @@ test "SBOM includes its required document version and unique components" {
 ///|
 test "SBOM escapes package URL data and omits an absent version delimiter" {
   let bom = @json.parse(
-    sbom_json([
+    @moonvigil.sbom_json([
       Dependency(
         name="example/package",
         version="main#revision?x=1+build/@ %😀",
@@ -83,7 +86,7 @@ test "SBOM escapes package URL data and omits an absent version delimiter" {
 
 ///|
 test "SARIF emits escaped file URIs and one rule for repeated findings" {
-  let database = parse_database(
+  let database = @moonvigil.parse_database(
     (
       #|{"schema_version":"1","advisories":[{"id":"MV-REPORT","package_name":"example/package","affected":"*","severity":"high","summary":"report fixture","fixed_version":"","references":["not a URL","https://example.invalid/MV-REPORT"]}]}
     ),
@@ -92,13 +95,13 @@ test "SARIF emits escaped file URIs and one rule for repeated findings" {
     "C:\\repo name\\模块#1\\moon.mod", "workspace name/moon.mod#fixture?100%.json",
     "/tmp/a#b/moon.mod", "\\\\server\\share name\\moon.mod",
   ]
-  let report = scan(
+  let report = @moonvigil.scan(
     sources.mapi(fn(index, source) {
       Dependency(name="example/package", version="1.0.\{index}", source~)
     }),
     database,
   )
-  let sarif = @json.parse(report_sarif(report))
+  let sarif = @json.parse(@moonvigil.report_sarif(report))
   guard sarif is Object(root) else { fail("expected SARIF object") }
   guard root.get("runs") is Some(Array([Object(run)])) else {
     fail("expected a SARIF run")
@@ -136,12 +139,12 @@ test "SARIF emits escaped file URIs and one rule for repeated findings" {
 test "legacy manifest object rejects unsupported dependency value types" {
   for value in ["null", "true", "42", "{}", "[]"] {
     try
-      parse_manifest(
+      @moonvigil.parse_manifest(
         "{\"import\":{\"example/package\":\{value}}}",
         source="moon.mod.json",
       )
     catch {
-      ManifestParseError::InvalidManifest(
+      @moonvigil.ManifestParseError::InvalidManifest(
         source="moon.mod.json",
         line=1,
         reason~
@@ -152,7 +155,10 @@ test "legacy manifest object rejects unsupported dependency value types" {
     }
   }
   assert_eq(
-    parse_manifest("{\"import\":[\"example/package\"]}", source="moon.pkg.json").length(),
+    @moonvigil.parse_manifest(
+      "{\"import\":[\"example/package\"]}",
+      source="moon.pkg.json",
+    ).length(),
     0,
   )
 }
@@ -168,14 +174,14 @@ test "SARIF omits malformed help URIs while retaining original references" {
       ("https://example.invalid/path[1]", false),
       ("https://example.invalid/path%20with%20spaces?view=full#details", true),
     ] {
-    let database = parse_database(
+    let database = @moonvigil.parse_database(
       "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-URI\",\"package_name\":\"example/package\",\"affected\":\"*\",\"severity\":\"low\",\"summary\":\"URI fixture\",\"fixed_version\":\"\",\"references\":[\{@json.to_json(reference).stringify()}]}]}",
     )
-    let report = scan(
+    let report = @moonvigil.scan(
       [Dependency(name="example/package", version="1.0.0", source="moon.mod")],
       database,
     )
-    guard @json.parse(report_sarif(report)) is Object(root) else {
+    guard @json.parse(@moonvigil.report_sarif(report)) is Object(root) else {
       fail("expected SARIF object")
     }
     guard root.get("runs") is Some(Array([Object(run)])) &&
