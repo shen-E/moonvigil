@@ -11,7 +11,7 @@
 
 name = "shen-E/moonvigil"
 
-version = "0.2.0"
+version = "0.2.1"
 
 readme = "README.mbt.md"
 
@@ -26,5 +26,5 @@ preferred_target = "native"
 description = "Offline dependency vulnerability scanner for MoonBit projects."
 
 import {
-  "moonbitlang/x@0.5.5",
+  "moonbitlang/x@0.5.7",
 }

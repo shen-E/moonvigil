@@ -2,7 +2,7 @@
 test "severity gate includes the selected level and every higher level" {
   let severities = ["critical", "high", "medium", "low", "info"]
   for threshold_index, threshold in severities {
-    let policy = parse_policy(
+    let policy = @moonvigil.parse_policy(
       "{\"schema_version\":\"1\",\"fail_on\":\"\{threshold}\",\"suppressions\":[]}",
       today="2026-09-24",
     )
@@ -10,7 +10,12 @@ test "severity gate includes the selected level and every higher level" {
       let report = policy_test_report(
         "MV-POLICY", "example/p", severity, "1.0.0",
       )
-      let evaluated = evaluate_policy(report, policy, None, today="2026-09-24")
+      let evaluated = @moonvigil.evaluate_policy(
+        report,
+        policy,
+        None,
+        today="2026-09-24",
+      )
       assert_eq(evaluated.should_fail, finding_index <= threshold_index)
     }
   }
@@ -19,12 +24,17 @@ test "severity gate includes the selected level and every higher level" {
 ///|
 test "command threshold overrides the policy threshold in both directions" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-  let policy = parse_policy(
+  let policy = @moonvigil.parse_policy(
     "{\"schema_version\":\"1\",\"fail_on\":\"critical\"}",
     today="2026-09-24",
   )
-  let raised = evaluate_policy(report, policy, Some("high"), today="2026-09-24")
-  let lowered = evaluate_policy(
+  let raised = @moonvigil.evaluate_policy(
+    report,
+    policy,
+    Some("high"),
+    today="2026-09-24",
+  )
+  let lowered = @moonvigil.evaluate_policy(
     report,
     policy,
     Some("critical"),
@@ -37,11 +47,19 @@ test "command threshold overrides the policy threshold in both directions" {
 ///|
 test "rejects an invalid command threshold" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-  let policy = empty_policy(fail_on="high")
+  let policy = @moonvigil.empty_policy(fail_on="high")
   try
-    evaluate_policy(report, policy, Some("urgent"), today="2026-09-24")
+    @moonvigil.evaluate_policy(
+      report,
+      policy,
+      Some("urgent"),
+      today="2026-09-24",
+    )
   catch {
-    PolicyValidationError::InvalidPolicyField(field="fail_on", reason=_) => ()
+    @moonvigil.PolicyValidationError::InvalidPolicyField(
+      field="fail_on",
+      reason=_
+    ) => ()
     _ => fail("expected invalid threshold diagnostic")
   } noraise {
     _ => fail("expected invalid threshold diagnostic")
@@ -50,18 +68,23 @@ test "rejects an invalid command threshold" {
 
 ///|
 test "uncomparable versions never block policy gates" {
-  let database = parse_database(
+  let database = @moonvigil.parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"affected\":\"*\",\"severity\":\"critical\",\"summary\":\"policy fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/MV-POLICY\"]}]}",
   )
-  let dependency = Dependency::Dependency(
+  let dependency = @moonvigil.Dependency::Dependency(
     name="example/p",
     version="main",
     source="moon.mod",
   )
-  let report = scan([dependency], database)
+  let report = @moonvigil.scan([dependency], database)
   assert_eq(report.uncomparable.length(), 1)
-  let policy = empty_policy(fail_on="critical")
-  let evaluated = evaluate_policy(report, policy, None, today="2026-09-24")
+  let policy = @moonvigil.empty_policy(fail_on="critical")
+  let evaluated = @moonvigil.evaluate_policy(
+    report,
+    policy,
+    None,
+    today="2026-09-24",
+  )
   assert_false(evaluated.should_fail)
   assert_eq(evaluated.report.uncomparable.length(), 1)
 }
@@ -69,14 +92,19 @@ test "uncomparable versions never block policy gates" {
 ///|
 test "baseline gates block new findings while existing findings remain visible" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-  let policy = empty_policy(fail_on="high")
-  let known = apply_baseline(
+  let policy = @moonvigil.empty_policy(fail_on="high")
+  let known = @moonvigil.apply_baseline(
     report,
-    parse_baseline(
+    @moonvigil.parse_baseline(
       "{\"schema_version\":\"1\",\"entries\":[{\"advisory_id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"version\":\"1.0.0\"},{\"advisory_id\":\"MV-REMOVED\",\"package_name\":\"example/old\",\"version\":\"2.0.0\"}]}",
     ),
   )
-  let known_result = evaluate_policy(known, policy, None, today="2026-09-25")
+  let known_result = @moonvigil.evaluate_policy(
+    known,
+    policy,
+    None,
+    today="2026-09-25",
+  )
   assert_false(known_result.should_fail)
   assert_eq(known_result.report.policy.unwrap().blocking_findings, 0)
   assert_eq(
@@ -84,9 +112,16 @@ test "baseline gates block new findings while existing findings remain visible" 
     1,
   )
 
-  let empty = parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}")
-  let fresh = apply_baseline(report, empty)
-  let fresh_result = evaluate_policy(fresh, policy, None, today="2026-09-25")
+  let empty = @moonvigil.parse_baseline(
+    "{\"schema_version\":\"1\",\"entries\":[]}",
+  )
+  let fresh = @moonvigil.apply_baseline(report, empty)
+  let fresh_result = @moonvigil.evaluate_policy(
+    fresh,
+    policy,
+    None,
+    today="2026-09-25",
+  )
   assert_true(fresh_result.should_fail)
   assert_eq(fresh_result.report.policy.unwrap().blocking_findings, 1)
   assert_true(fresh_result.report.findings[0].baseline_status is Some(New))
@@ -95,25 +130,34 @@ test "baseline gates block new findings while existing findings remain visible" 
 ///|
 test "baseline policy suppression remains visible and does not gate a new finding" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-  let fresh = apply_baseline(
+  let fresh = @moonvigil.apply_baseline(
     report,
-    parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}"),
+    @moonvigil.parse_baseline("{\"schema_version\":\"1\",\"entries\":[]}"),
   )
-  let policy = parse_policy(
+  let policy = @moonvigil.parse_policy(
     policy_text("MV-POLICY", "example/p", "1.0.0", "2099-12-31"),
     today="2026-09-25",
   )
-  let result = evaluate_policy(fresh, policy, None, today="2026-09-25")
+  let result = @moonvigil.evaluate_policy(
+    fresh,
+    policy,
+    None,
+    today="2026-09-25",
+  )
   assert_false(result.should_fail)
   assert_true(result.report.findings[0].baseline_status is Some(New))
   assert_true(result.report.findings[0].suppression is Some(_))
   assert_eq(result.report.policy.unwrap().suppressed_findings, 1)
   assert_eq(result.report.baseline.unwrap().new_findings, 1)
   assert_true(
-    report_json(result.report).contains("\"baseline_status\": \"New\""),
+    @moonvigil.report_json(result.report).contains(
+      "\"baseline_status\": \"New\"",
+    ),
   )
-  assert_true(report_terminal(result.report).contains("[suppressed, new]"))
-  let sarif = report_sarif(result.report)
+  assert_true(
+    @moonvigil.report_terminal(result.report).contains("[suppressed, new]"),
+  )
+  let sarif = @moonvigil.report_sarif(result.report)
   assert_true(sarif.contains("\"baselineState\": \"new\""))
   assert_true(sarif.contains("\"kind\": \"external\""))
 }
@@ -121,18 +165,23 @@ test "baseline policy suppression remains visible and does not gate a new findin
 ///|
 test "exact advisory package and version suppression remains auditable" {
   let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-  let policy = parse_policy(
+  let policy = @moonvigil.parse_policy(
     policy_text("MV-POLICY", "example/p", "1.0.0", "2026-09-24"),
     today="2026-09-24",
   )
-  let evaluated = evaluate_policy(report, policy, None, today="2026-09-24")
+  let evaluated = @moonvigil.evaluate_policy(
+    report,
+    policy,
+    None,
+    today="2026-09-24",
+  )
   assert_false(evaluated.should_fail)
   assert_eq(evaluated.report.findings.length(), 1)
   assert_true(evaluated.report.findings[0].suppression is Some(_))
   assert_eq(evaluated.report.policy.unwrap().suppressed_findings, 1)
-  let json = report_json(evaluated.report)
-  let terminal = report_terminal(evaluated.report)
-  let sarif = report_sarif(evaluated.report)
+  let json = @moonvigil.report_json(evaluated.report)
+  let terminal = @moonvigil.report_terminal(evaluated.report)
+  let sarif = @moonvigil.report_sarif(evaluated.report)
   assert_true(json.contains("\"schema_version\": \"6\""))
   assert_true(json.contains("short-lived compatibility exception"))
   assert_true(terminal.contains("[suppressed]"))
@@ -154,11 +203,16 @@ test "suppression key mismatches remain visible and warn without suppressing" {
   for pair in cases {
     let (advisory_id, package_name, version) = pair
     let report = policy_test_report("MV-POLICY", "example/p", "high", "1.0.0")
-    let policy = parse_policy(
+    let policy = @moonvigil.parse_policy(
       policy_text(advisory_id, package_name, version, "2099-12-31"),
       today="2026-09-24",
     )
-    let evaluated = evaluate_policy(report, policy, None, today="2026-09-24")
+    let evaluated = @moonvigil.evaluate_policy(
+      report,
+      policy,
+      None,
+      today="2026-09-24",
+    )
     assert_true(evaluated.should_fail)
     assert_true(evaluated.report.findings[0].suppression is None)
     assert_eq(
@@ -166,7 +220,7 @@ test "suppression key mismatches remain visible and warn without suppressing" {
       1,
     )
     assert_true(
-      report_terminal(evaluated.report).contains(
+      @moonvigil.report_terminal(evaluated.report).contains(
         "Warning: suppression did not match",
       ),
     )
@@ -175,18 +229,18 @@ test "suppression key mismatches remain visible and warn without suppressing" {
 
 ///|
 test "suppression expiry is inclusive and invalid or expired dates fail" {
-  let valid_today = parse_policy(
+  let valid_today = @moonvigil.parse_policy(
     policy_text("MV-POLICY", "example/p", "1.0.0", "2026-09-24"),
     today="2026-09-24",
   )
   assert_eq(valid_today.suppressions.length(), 1)
   try
-    parse_policy(
+    @moonvigil.parse_policy(
       policy_text("MV-POLICY", "example/p", "1.0.0", "2026-09-23"),
       today="2026-09-24",
     )
   catch {
-    PolicyValidationError::ExpiredSuppression(
+    @moonvigil.PolicyValidationError::ExpiredSuppression(
       index=0,
       advisory_id="MV-POLICY",
       expires_on="2026-09-23"
@@ -196,12 +250,12 @@ test "suppression expiry is inclusive and invalid or expired dates fail" {
     _ => fail("expected expired suppression error")
   }
   try
-    parse_policy(
+    @moonvigil.parse_policy(
       policy_text("MV-POLICY", "example/p", "1.0.0", "2026-02-30"),
       today="2026-09-24",
     )
   catch {
-    PolicyValidationError::InvalidPolicyField(
+    @moonvigil.PolicyValidationError::InvalidPolicyField(
       field="suppressions[0].expires_on",
       reason=_
     ) => ()
@@ -209,18 +263,21 @@ test "suppression expiry is inclusive and invalid or expired dates fail" {
   } noraise {
     _ => fail("expected invalid date error")
   }
-  let leap_day = parse_policy(
+  let leap_day = @moonvigil.parse_policy(
     policy_text("MV-POLICY", "example/p", "1.0.0", "2024-02-29"),
     today="2024-02-29",
   )
   assert_eq(leap_day.suppressions.length(), 1)
   try
-    parse_policy(
+    @moonvigil.parse_policy(
       "{\"schema_version\":\"1\",\"fail_on\":\"high\"}",
       today="2023-02-29",
     )
   catch {
-    PolicyValidationError::InvalidPolicyField(field="today", reason=_) => ()
+    @moonvigil.PolicyValidationError::InvalidPolicyField(
+      field="today",
+      reason=_
+    ) => ()
     _ => fail("expected invalid current-date error")
   } noraise {
     _ => fail("expected invalid current-date error")
@@ -237,17 +294,20 @@ test "validates policy schema severity required fields version and duplicate rul
     "{\"schema_version\":\"1\",\"fail_on\":\"high\",\"suppressions\":[1]}", "{\"schema_version\":\"1\",\"fail_on\":\"high\",\"suppressions\":[{\"advisory_id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"version\":\"1.0.0\",\"expires_on\":\"2099-12-31\"}]}",
   ]
   for text in invalid_policies {
-    try parse_policy(text, today="2026-09-24") catch {
-      PolicyValidationError::InvalidPolicyField(field=_, reason=_) => ()
+    try @moonvigil.parse_policy(text, today="2026-09-24") catch {
+      @moonvigil.PolicyValidationError::InvalidPolicyField(field=_, reason=_) =>
+        ()
       _ => fail("expected invalid policy field")
     } noraise {
       _ => fail("expected invalid policy field")
     }
   }
   let duplicate_rule = "{\"schema_version\":\"1\",\"fail_on\":\"high\",\"suppressions\":[{\"advisory_id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"version\":\"1.0.0\",\"reason\":\"first\",\"expires_on\":\"2099-12-31\"},{\"advisory_id\":\"MV-POLICY\",\"package_name\":\"example/p\",\"version\":\"1.0.0\",\"reason\":\"duplicate\",\"expires_on\":\"2099-12-31\"}]}"
-  try parse_policy(duplicate_rule, today="2026-09-24") catch {
-    PolicyValidationError::InvalidPolicyField(field="suppressions[1]", reason=_) =>
-      ()
+  try @moonvigil.parse_policy(duplicate_rule, today="2026-09-24") catch {
+    @moonvigil.PolicyValidationError::InvalidPolicyField(
+      field="suppressions[1]",
+      reason=_
+    ) => ()
     _ => fail("expected duplicate suppression error")
   } noraise {
     _ => fail("expected duplicate suppression error")
@@ -260,11 +320,14 @@ fn policy_test_report(
   package_name : String,
   severity : String,
   version : String,
-) -> ScanReport raise {
-  let database = parse_database(
+) -> @moonvigil.ScanReport raise {
+  let database = @moonvigil.parse_database(
     "{\"schema_version\":\"1\",\"advisories\":[{\"id\":\"\{advisory_id}\",\"package_name\":\"\{package_name}\",\"affected\":\"1.0.0\",\"severity\":\"\{severity}\",\"summary\":\"policy fixture\",\"fixed_version\":\"\",\"references\":[\"https://example.invalid/\{advisory_id}\"]}]}",
   )
-  scan([Dependency(name=package_name, version~, source="moon.mod")], database)
+  @moonvigil.scan(
+    [Dependency(name=package_name, version~, source="moon.mod")],
+    database,
+  )
 }
 
 ///|

@@ -1,24 +1,27 @@
 ///|
 /// A narrowly scoped, auditable suppression rule.
+#derive(Debug, Eq, ToJson)
 pub struct PolicySuppression {
   advisory_id : String
   package_name : String
   version : String
   reason : String
   expires_on : String
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 /// CI policy for severity/scope gating and exact-version suppressions.
+#derive(Debug, Eq, ToJson)
 pub struct ScanPolicy {
   schema_version : String
   fail_on : String
   fail_on_scopes : Array[String]
   suppressions : Array[PolicySuppression]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 /// Policy outcome attached to a scan report.
+#derive(Debug, Eq, ToJson)
 pub struct PolicySummary {
   fail_on : String
   fail_on_scopes : Array[String]
@@ -26,15 +29,17 @@ pub struct PolicySummary {
   scope_excluded_findings : Int32
   suppressed_findings : Int32
   unmatched_suppressions : Array[PolicySuppression]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
+#derive(Debug, Eq)
 pub struct PolicyEvaluation {
   report : ScanReport
   should_fail : Bool
-} derive(Debug, Eq)
+}
 
 ///|
+#derive(Debug, Eq)
 pub(all) suberror PolicyValidationError {
   InvalidPolicyField(field~ : String, reason~ : String)
   ExpiredSuppression(
@@ -42,7 +47,7 @@ pub(all) suberror PolicyValidationError {
     advisory_id~ : String,
     expires_on~ : String
   )
-} derive(Debug, Eq)
+}
 
 ///|
 /// Parse and validate a policy using a UTC date supplied by the caller.
@@ -549,3 +554,42 @@ fn date_number(chars : Array[Char], start : Int32, length : Int32) -> Int32? {
 fn is_leap_year(year : Int32) -> Bool {
   year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)
 }
+
+///|
+pub extend PolicyEvaluation with @debug.Debug::{to_repr}
+
+///|
+pub extend PolicyEvaluation with Eq::{not_equal, equal}
+
+///|
+pub extend PolicySummary with @debug.Debug::{to_repr}
+
+///|
+pub extend PolicySummary with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend PolicySummary with Eq::{not_equal, equal}
+
+///|
+pub extend PolicySuppression with @debug.Debug::{to_repr}
+
+///|
+pub extend PolicySuppression with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend PolicySuppression with Eq::{not_equal, equal}
+
+///|
+pub extend PolicyValidationError with @debug.Debug::{to_repr}
+
+///|
+pub extend PolicyValidationError with Eq::{not_equal, equal}
+
+///|
+pub extend ScanPolicy with @debug.Debug::{to_repr}
+
+///|
+pub extend ScanPolicy with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend ScanPolicy with Eq::{not_equal, equal}

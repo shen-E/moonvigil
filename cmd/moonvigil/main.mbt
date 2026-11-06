@@ -89,7 +89,7 @@ fn main {
 fn dispatch(args : Array[String]) -> Unit raise {
   match args {
     [_] | [_, "--help"] | [_, "-h"] => print_usage()
-    [_, "--version"] => println("MoonVigil 0.2.0")
+    [_, "--version"] => println("MoonVigil 0.2.1")
     [_, "scan", path, .. rest] => scan_command(path, rest.to_owned())
     [_, "sbom", path, .. rest] => sbom_command(path, rest.to_owned())
     [_, "db", "validate", database] => validate_database(database)

@@ -1,13 +1,15 @@
 ///|
 /// A semantic validation failure in a local advisory database.
+#derive(Debug, Eq)
 pub(all) struct DatabaseIssue {
   index : Int32
   id : String
   field : String
   reason : String
-} derive(Debug, Eq)
+}
 
 ///|
+#derive(Debug, Eq)
 pub(all) suberror DatabaseValidationError {
   UnsupportedSchemaVersion(String)
   InvalidDatabaseField(field~ : String, reason~ : String)
@@ -18,7 +20,7 @@ pub(all) suberror DatabaseValidationError {
     reason~ : String
   )
   MultipleInvalidAdvisories(Array[DatabaseIssue])
-} derive(Debug, Eq)
+}
 
 ///|
 /// Validate the supported advisory database schema and semantic constraints.
@@ -323,3 +325,15 @@ fn valid_url_port(port : String) -> Bool {
   }
   value > 0 && value <= 65535
 }
+
+///|
+pub extend DatabaseIssue with @debug.Debug::{to_repr}
+
+///|
+pub extend DatabaseIssue with Eq::{not_equal, equal}
+
+///|
+pub extend DatabaseValidationError with @debug.Debug::{to_repr}
+
+///|
+pub extend DatabaseValidationError with Eq::{not_equal, equal}

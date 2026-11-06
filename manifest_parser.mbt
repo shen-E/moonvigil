@@ -1,11 +1,12 @@
 ///|
 /// The dependency usage context recorded in a MoonBit package manifest.
+#derive(Debug, Eq)
 pub(all) enum DependencyScope {
   Runtime
   Test
   WhiteboxTest
   Other
-} derive(Debug, Eq)
+}
 
 ///|
 impl ToJson for DependencyScope with fn to_json(self) {
@@ -14,12 +15,13 @@ impl ToJson for DependencyScope with fn to_json(self) {
 
 ///|
 /// A package import declared in a modern `moon.pkg` manifest.
+#derive(Debug, Eq, ToJson)
 pub struct PackageImport {
   package_name : String
   alias_name : String
   scope : DependencyScope
   source : String
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub fn PackageImport::PackageImport(
@@ -65,9 +67,10 @@ priv struct ManifestImportBlock {
 }
 
 ///|
+#derive(Debug, Eq)
 pub(all) suberror ManifestParseError {
   InvalidManifest(source~ : String, line~ : Int32, reason~ : String)
-} derive(Debug, Eq)
+}
 
 ///|
 /// Parse direct module dependencies from modern `moon.mod` syntax.
@@ -532,3 +535,24 @@ fn manifest_token_error(
   }
   InvalidManifest(source~, line~, reason~)
 }
+
+///|
+pub extend DependencyScope with @debug.Debug::{to_repr}
+
+///|
+pub extend DependencyScope with Eq::{not_equal, equal}
+
+///|
+pub extend ManifestParseError with @debug.Debug::{to_repr}
+
+///|
+pub extend ManifestParseError with Eq::{not_equal, equal}
+
+///|
+pub extend PackageImport with @debug.Debug::{to_repr}
+
+///|
+pub extend PackageImport with @moonbitlang/core/json.ToJson::{to_json}
+
+///|
+pub extend PackageImport with Eq::{not_equal, equal}
